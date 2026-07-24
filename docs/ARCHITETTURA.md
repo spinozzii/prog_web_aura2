@@ -1,0 +1,258 @@
+# Architettura tecnica
+
+## 1. Vista d'insieme
+
+```text
+┌────────────────────────────── Remoto ──────────────────────────────┐
+│ MySQL/MariaDB ← PDO ← Web-service PHP                              │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ HTTPS / JSON a lotti
+                                ▼
+┌────────────────────────────── Locale ──────────────────────────────┐
+│ Servlet Java su Tomcat                                             │
+│      │                                                             │
+│      └── HTTP / JSON ──→ Web-service Django ──→ PostgreSQL          │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+La servlet è un orchestratore HTTP. Non contiene logica SQL e non accede
+direttamente ai database.
+
+## 2. Moduli
+
+### `remote-php`
+
+Responsabilità:
+
+- autenticazione delle richieste;
+- lettura del manifest;
+- export deterministico di una entità a lotti;
+- serializzazione canonica;
+- errori HTTP uniformi.
+
+Non contiene codice di importazione e non modifica MySQL.
+
+### `bridge-servlet`
+
+Responsabilità:
+
+- creazione di un'esecuzione di migrazione;
+- lettura del manifest remoto;
+- scelta dell'ordine delle entità;
+- ciclo sui cursori;
+- inoltro dei lotti;
+- checkpoint, timeout, retry limitati e stato;
+- richiesta di finalizzazione.
+
+La logica condivisa resta indipendente dalle API Servlet. Due moduli sottili
+forniscono l'adattamento:
+
+- Tomcat 9: Servlet 4.0, namespace `javax.servlet`, bytecode Java 8;
+- Tomcat 11: Servlet 6.1, namespace `jakarta.servlet`, bytecode Java 17.
+
+Il pacchetto finale contiene entrambi i WAR. Il configuratore seleziona quello
+compatibile con l'ambiente rilevato.
+
+### `local-django`
+
+Responsabilità:
+
+- autenticazione e validazione del contratto;
+- apertura o ripresa di una migrazione;
+- persistenza idempotente in PostgreSQL;
+- transazioni per lotto;
+- registro di lotti e conteggi;
+- finalizzazione, controllo digest e vincoli;
+- stato di salute e stato della migrazione.
+
+PostgreSQL resta l'autorità dei vincoli. Le relazioni verso chiavi composte non
+devono dipendere da API ORM ancora limitate: migrazioni SQL esplicite e un
+repository di importazione possono essere usati quando rendono chiavi e FK più
+chiare e verificabili.
+
+## 3. Contratto HTTP
+
+Tutte le risposte:
+
+- usano `application/json; charset=utf-8`;
+- includono `apiVersion`;
+- usano date/ore tecniche ISO 8601 UTC;
+- non includono stack trace o segreti;
+- hanno codici HTTP coerenti.
+
+### Salute
+
+Ogni componente espone `GET /health`.
+
+Risposta minima:
+
+```json
+{
+  "apiVersion": "1.0",
+  "service": "remote-php",
+  "status": "ok"
+}
+```
+
+Valori di `service`:
+
+- `remote-php`;
+- `bridge-servlet`;
+- `local-django`.
+
+L'endpoint di salute non accede obbligatoriamente al database. Un controllo
+separato di readiness può verificare le dipendenze senza confondere processo
+avviato e sistema pronto.
+
+### Manifest remoto
+
+`GET /api/v1/manifest`
+
+Contiene:
+
+- `apiVersion`;
+- `datasetId`;
+- `generatedAt`;
+- ordine delle entità;
+- numero di righe per entità;
+- digest canonico per entità;
+- dimensione massima accettata del lotto.
+
+### Export remoto
+
+`GET /api/v1/export/{entity}?cursor=...&limit=...`
+
+Contiene:
+
+- `datasetId`;
+- `entity`;
+- `cursor`;
+- `nextCursor`;
+- `hasMore`;
+- `rowCount`;
+- `rows`;
+- digest del lotto.
+
+Il cursore è opaco per il chiamante. Il server usa internamente la chiave
+primaria completa come paginazione keyset.
+
+### Avvio della migrazione
+
+`POST /api/v1/migrations` sulla servlet.
+
+La servlet crea un `migrationId`, controlla i servizi, legge il manifest e
+inizia il flusso. Una seconda richiesta con lo stesso identificativo non deve
+creare duplicazioni.
+
+### Import locale
+
+`POST /api/v1/migrations/{migrationId}/batches`
+
+Ogni lotto include:
+
+- dataset ed entità;
+- identificativo e sequenza del lotto;
+- righe;
+- digest.
+
+Il servizio Django convalida e registra il lotto nella stessa transazione dei
+dati. Un lotto già completato con lo stesso digest restituisce successo
+idempotente; lo stesso identificativo con contenuto diverso restituisce
+conflitto.
+
+### Finalizzazione
+
+`POST /api/v1/migrations/{migrationId}/finalize`
+
+Il servizio locale:
+
+- verifica presenza di tutti i lotti;
+- confronta conteggi e digest;
+- controlla FK, unicità e progressivi;
+- marca la migrazione `completed` solo dopo tutti i controlli.
+
+### Stato
+
+`GET /api/v1/migrations/{migrationId}`
+
+Restituisce stato, entità corrente, righe importate, totale previsto, ultimo
+errore sintetico e risultato della verifica.
+
+## 4. Stati
+
+Stati minimi:
+
+- `created`;
+- `running`;
+- `failed`;
+- `completed`.
+
+Un errore recuperabile mantiene checkpoint e ultimo lotto confermato. Un errore
+di schema, digest o dataset rende l'esecuzione `failed` e richiede intervento o
+un nuovo identificativo.
+
+## 5. Ordine delle entità
+
+1. `cittadino`;
+2. `patologia`;
+3. `patologia_cronica`;
+4. `patologia_mortale`;
+5. `ospedale`;
+6. `ricovero`;
+7. `patologia_ricovero`;
+8. `progressivo_ricovero`.
+
+L'ordine è definito dal progetto, non accettato liberamente dal client.
+
+## 6. Idempotenza
+
+Chiave logica di un lotto:
+
+`(migration_id, entity, batch_sequence)`
+
+Il digest distingue la ripetizione valida da un conflitto. La persistenza dei
+dati usa le chiavi naturali del dominio e operazioni compatibili con un
+rilancio. La finalizzazione non cancella o sostituisce silenziosamente dati
+estranei.
+
+## 7. Installazione
+
+Il pacchetto finale dovrà contenere:
+
+- codice sorgente dei tre componenti;
+- dipendenze Python offline con hash;
+- due WAR precompilati;
+- configurazioni di esempio;
+- dump sorgente;
+- configuratore e verificatore da riga di comando;
+- manuale e documento delle scelte in PDF.
+
+Il configuratore:
+
+1. rileva Python, Java, Tomcat e PostgreSQL;
+2. rifiuta combinazioni incompatibili con un messaggio chiaro;
+3. crea un ambiente Python locale;
+4. installa le dipendenze senza rete;
+5. prepara database e configurazioni;
+6. seleziona e distribuisce il WAR corretto;
+7. avvia o guida l'avvio dei servizi;
+8. esegue salute/readiness e una verifica sintetica.
+
+## 8. Osservabilità
+
+I log usano:
+
+- `migrationId`;
+- componente;
+- entità e sequenza lotto;
+- durata;
+- esito e codice errore.
+
+Non registrano:
+
+- segreti;
+- credenziali;
+- interi payload;
+- stack trace nelle risposte;
+- dati personali oltre gli identificativi indispensabili al debug locale.
+

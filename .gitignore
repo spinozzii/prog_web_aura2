@@ -1,0 +1,31 @@
+# Credenziali e configurazioni locali
+.env
+.env.*
+!.env.example
+*.local
+local.properties
+
+# Python / Django
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+local-django/staticfiles/
+
+# Java
+bridge-servlet/**/target/
+*.class
+
+# Runtime
+logs/
+tmp/
+*.log
+
+# IDE e sistema operativo
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
