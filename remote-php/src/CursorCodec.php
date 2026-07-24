@@ -7,7 +7,7 @@ namespace DriveAura\Remote;
 /** Authenticated keyset cursor whose contents are private API details. */
 final class CursorCodec
 {
-    private const SIGNATURE_CONTEXT = "drive-aura-cursor-v1\n";
+    private const SIGNATURE_CONTEXT = "drive-aura-cursor-v2\n";
     private const MAX_CURSOR_LENGTH = 1024;
 
     private readonly \Closure $clock;
@@ -29,31 +29,33 @@ final class CursorCodec
             : \Closure::fromCallable($clock);
     }
 
-    public function encode(string $entity, string $datasetId, string $afterCod): string
+    /** @param list<string|int> $after */
+    public function encode(string $entity, string $datasetId, array $after): string
     {
         if (
             preg_match('/\A[a-z][a-z0-9_]{0,63}\z/D', $entity) !== 1
             || preg_match('/\A[0-9a-f]{64}\z/D', $datasetId) !== 1
-            || $afterCod === ''
-            || strlen($afterCod) > 80
+            || !self::validTuple($after)
         ) {
             throw new \InvalidArgumentException('Dati interni del cursore non validi.');
         }
 
-        $payload = json_encode([
-            'v' => 1,
-            'entity' => $entity,
-            'datasetId' => $datasetId,
-            'after' => $afterCod,
-            'exp' => ($this->clock)() + $this->ttlSeconds,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $payload = json_encode(
+            [2, $entity, $datasetId, $after, ($this->clock)() + $this->ttlSeconds],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                | JSON_UNESCAPED_LINE_TERMINATORS | JSON_THROW_ON_ERROR
+        );
         $encoded = self::base64UrlEncode($payload);
         $signature = hash_hmac('sha256', self::SIGNATURE_CONTEXT . $encoded, $this->secret, true);
 
-        return $encoded . '.' . self::base64UrlEncode($signature);
+        $cursor = $encoded . '.' . self::base64UrlEncode($signature);
+        if (strlen($cursor) > self::MAX_CURSOR_LENGTH) {
+            throw new \InvalidArgumentException('Dati interni del cursore non validi.');
+        }
+        return $cursor;
     }
 
-    /** @return array{entity: string, datasetId: string, after: string} */
+    /** @return array{entity: string, datasetId: string, after: list<string|int>} */
     public function decode(string $cursor): array
     {
         if (
@@ -78,31 +80,52 @@ final class CursorCodec
         }
         if (
             !is_array($payload)
+            || !array_is_list($payload)
             || count($payload) !== 5
-            || !array_key_exists('v', $payload)
-            || !array_key_exists('entity', $payload)
-            || !array_key_exists('datasetId', $payload)
-            || !array_key_exists('after', $payload)
-            || !array_key_exists('exp', $payload)
-            || $payload['v'] !== 1
-            || !is_string($payload['entity'])
-            || preg_match('/\A[a-z][a-z0-9_]{0,63}\z/D', $payload['entity']) !== 1
-            || !is_string($payload['datasetId'])
-            || preg_match('/\A[0-9a-f]{64}\z/D', $payload['datasetId']) !== 1
-            || !is_string($payload['after'])
-            || $payload['after'] === ''
-            || strlen($payload['after']) > 80
-            || !is_int($payload['exp'])
-            || $payload['exp'] <= ($this->clock)()
+            || $payload[0] !== 2
+            || !is_string($payload[1])
+            || preg_match('/\A[a-z][a-z0-9_]{0,63}\z/D', $payload[1]) !== 1
+            || !is_string($payload[2])
+            || preg_match('/\A[0-9a-f]{64}\z/D', $payload[2]) !== 1
+            || !is_array($payload[3])
+            || !self::validTuple($payload[3])
+            || !is_int($payload[4])
+            || $payload[4] <= ($this->clock)()
         ) {
             throw self::invalidCursor();
         }
 
         return [
-            'entity' => $payload['entity'],
-            'datasetId' => $payload['datasetId'],
-            'after' => $payload['after'],
+            'entity' => $payload[1],
+            'datasetId' => $payload[2],
+            'after' => $payload[3],
         ];
+    }
+
+    /** @param array<mixed> $tuple */
+    private static function validTuple(array $tuple): bool
+    {
+        if (!array_is_list($tuple) || $tuple === [] || count($tuple) > 8) {
+            return false;
+        }
+        foreach ($tuple as $value) {
+            if (is_int($value)) {
+                if ($value < 0) {
+                    return false;
+                }
+                continue;
+            }
+            if (
+                !is_string($value)
+                || $value === ''
+                || strlen($value) > 1024
+                || strpos($value, "\0") !== false
+                || preg_match('//u', $value) !== 1
+            ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static function base64UrlEncode(string $value): string

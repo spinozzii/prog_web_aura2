@@ -1,0 +1,144 @@
+{
+  "apiVersion": "1.0",
+  "rowsByEntity": {
+    "cittadino": [
+      {
+        "cssn": "CSSN001",
+        "nome": "Àlba",
+        "cognome": "Rossi",
+        "data_nascita": "1900-01-01",
+        "luogo_nascita": "Bergamo",
+        "indirizzo": "Via \"Roma\" 1"
+      },
+      {
+        "cssn": "CSSN002",
+        "nome": "Bruno",
+        "cognome": "Bianchi",
+        "data_nascita": "2000-02-29",
+        "luogo_nascita": "Milano",
+        "indirizzo": "Viale Europa 2"
+      },
+      {
+        "cssn": "CSSN003",
+        "nome": "Carla",
+        "cognome": "Verdi",
+        "data_nascita": "2026-07-24",
+        "luogo_nascita": "Lecco",
+        "indirizzo": "Piazza Duomo 3"
+      }
+    ],
+    "patologia": [
+      {"cod": "P001", "nome": "Cronica soltanto", "criticita": 1},
+      {"cod": "P002", "nome": "Mortale soltanto", "criticita": 5},
+      {"cod": "P003", "nome": "Cronica e mortale", "criticita": 4},
+      {"cod": "P004", "nome": "Nessuna specializzazione", "criticita": 2}
+    ],
+    "patologia_cronica": [
+      {"cod_patologia": "P001"},
+      {"cod_patologia": "P003"}
+    ],
+    "patologia_mortale": [
+      {"cod_patologia": "P002"},
+      {"cod_patologia": "P003"}
+    ],
+    "ospedale": [
+      {
+        "codice": "H001",
+        "nome": "Ospedale Sant'Ànna",
+        "citta": "Bergamo",
+        "indirizzo": "Via Salute 10",
+        "direttore_sanitario_cssn": "CSSN001"
+      },
+      {
+        "codice": "H002",
+        "nome": "Clinica Nord",
+        "citta": "Milano",
+        "indirizzo": "Via Cura 20",
+        "direttore_sanitario_cssn": "CSSN002"
+      }
+    ],
+    "ricovero": [
+      {
+        "cod_ospedale": "H001",
+        "cod": 1,
+        "paziente_cssn": "CSSN003",
+        "data_inizio": "2024-02-29",
+        "durata": 1,
+        "motivo": "Controllo \"speciale\"\\giornaliero",
+        "costo": "0.00"
+      },
+      {
+        "cod_ospedale": "H001",
+        "cod": 2,
+        "paziente_cssn": "CSSN002",
+        "data_inizio": "1900-01-01",
+        "durata": 3650,
+        "motivo": "Terapia prolungata",
+        "costo": "1234.50"
+      },
+      {
+        "cod_ospedale": "H002",
+        "cod": 1,
+        "paziente_cssn": "CSSN001",
+        "data_inizio": "2026-07-24",
+        "durata": 10,
+        "motivo": "Osservazione",
+        "costo": "99.99"
+      }
+    ],
+    "patologia_ricovero": [
+      {"cod_ospedale": "H001", "cod_ricovero": 1, "cod_patologia": "P001"},
+      {"cod_ospedale": "H001", "cod_ricovero": 1, "cod_patologia": "P003"},
+      {"cod_ospedale": "H001", "cod_ricovero": 2, "cod_patologia": "P002"},
+      {"cod_ospedale": "H002", "cod_ricovero": 1, "cod_patologia": "P004"}
+    ],
+    "progressivo_ricovero": [
+      {"cod_ospedale": "H001", "prossimo_cod": 3},
+      {"cod_ospedale": "H002", "prossimo_cod": 2}
+    ]
+  },
+  "expectedByEntity": {
+    "cittadino": {
+      "rowCount": 3,
+      "expectedCanonical": "{\"cssn\":\"CSSN001\",\"nome\":\"Àlba\",\"cognome\":\"Rossi\",\"data_nascita\":\"1900-01-01\",\"luogo_nascita\":\"Bergamo\",\"indirizzo\":\"Via \\\"Roma\\\" 1\"}\n{\"cssn\":\"CSSN002\",\"nome\":\"Bruno\",\"cognome\":\"Bianchi\",\"data_nascita\":\"2000-02-29\",\"luogo_nascita\":\"Milano\",\"indirizzo\":\"Viale Europa 2\"}\n{\"cssn\":\"CSSN003\",\"nome\":\"Carla\",\"cognome\":\"Verdi\",\"data_nascita\":\"2026-07-24\",\"luogo_nascita\":\"Lecco\",\"indirizzo\":\"Piazza Duomo 3\"}\n",
+      "expectedSha256": "c25265b1b8183ce0761874a1114ab696c4d1fae824ef63eb315d0a2a312400fb"
+    },
+    "patologia": {
+      "rowCount": 4,
+      "expectedCanonical": "{\"cod\":\"P001\",\"nome\":\"Cronica soltanto\",\"criticita\":1}\n{\"cod\":\"P002\",\"nome\":\"Mortale soltanto\",\"criticita\":5}\n{\"cod\":\"P003\",\"nome\":\"Cronica e mortale\",\"criticita\":4}\n{\"cod\":\"P004\",\"nome\":\"Nessuna specializzazione\",\"criticita\":2}\n",
+      "expectedSha256": "642b7ff778b383cd346c6a2f0b6073385cad9bd7db6fb014ea06ddcc75dd7c84"
+    },
+    "patologia_cronica": {
+      "rowCount": 2,
+      "expectedCanonical": "{\"cod_patologia\":\"P001\"}\n{\"cod_patologia\":\"P003\"}\n",
+      "expectedSha256": "80c2f245a86b231002dcd2134942fdc192bbfb7c78b0a731356f29e5227faefa"
+    },
+    "patologia_mortale": {
+      "rowCount": 2,
+      "expectedCanonical": "{\"cod_patologia\":\"P002\"}\n{\"cod_patologia\":\"P003\"}\n",
+      "expectedSha256": "a1cb9d506bd8b04f07c330f8db5a645175ba52f3cf2226fdfd318acac8af41e8"
+    },
+    "ospedale": {
+      "rowCount": 2,
+      "expectedCanonical": "{\"codice\":\"H001\",\"nome\":\"Ospedale Sant'Ànna\",\"citta\":\"Bergamo\",\"indirizzo\":\"Via Salute 10\",\"direttore_sanitario_cssn\":\"CSSN001\"}\n{\"codice\":\"H002\",\"nome\":\"Clinica Nord\",\"citta\":\"Milano\",\"indirizzo\":\"Via Cura 20\",\"direttore_sanitario_cssn\":\"CSSN002\"}\n",
+      "expectedSha256": "73c8ecbd11c7f97facafa7d367918783194fb7d628d14c877380edf811d0bb1d"
+    },
+    "ricovero": {
+      "rowCount": 3,
+      "expectedCanonical": "{\"cod_ospedale\":\"H001\",\"cod\":1,\"paziente_cssn\":\"CSSN003\",\"data_inizio\":\"2024-02-29\",\"durata\":1,\"motivo\":\"Controllo \\\"speciale\\\"\\\\giornaliero\",\"costo\":\"0.00\"}\n{\"cod_ospedale\":\"H001\",\"cod\":2,\"paziente_cssn\":\"CSSN002\",\"data_inizio\":\"1900-01-01\",\"durata\":3650,\"motivo\":\"Terapia prolungata\",\"costo\":\"1234.50\"}\n{\"cod_ospedale\":\"H002\",\"cod\":1,\"paziente_cssn\":\"CSSN001\",\"data_inizio\":\"2026-07-24\",\"durata\":10,\"motivo\":\"Osservazione\",\"costo\":\"99.99\"}\n",
+      "expectedSha256": "414df0a16f3a946ef23509a1245e5e75d03835bbcbfdf5096ee1684bfa3b51df"
+    },
+    "patologia_ricovero": {
+      "rowCount": 4,
+      "expectedCanonical": "{\"cod_ospedale\":\"H001\",\"cod_ricovero\":1,\"cod_patologia\":\"P001\"}\n{\"cod_ospedale\":\"H001\",\"cod_ricovero\":1,\"cod_patologia\":\"P003\"}\n{\"cod_ospedale\":\"H001\",\"cod_ricovero\":2,\"cod_patologia\":\"P002\"}\n{\"cod_ospedale\":\"H002\",\"cod_ricovero\":1,\"cod_patologia\":\"P004\"}\n",
+      "expectedSha256": "90f8aaca9669a6715c20278e81e9d9b07c978226947443154acce3e694e53560"
+    },
+    "progressivo_ricovero": {
+      "rowCount": 2,
+      "expectedCanonical": "{\"cod_ospedale\":\"H001\",\"prossimo_cod\":3}\n{\"cod_ospedale\":\"H002\",\"prossimo_cod\":2}\n",
+      "expectedSha256": "5b6f1e0b3829134adbefff24cbf3eac684e9e2f922cd42fc22bf4d6e87d3b4da"
+    }
+  },
+  "expectedDatasetCanonical": "{\"entity\":\"cittadino\",\"rowCount\":3,\"digest\":\"c25265b1b8183ce0761874a1114ab696c4d1fae824ef63eb315d0a2a312400fb\"}\n{\"entity\":\"patologia\",\"rowCount\":4,\"digest\":\"642b7ff778b383cd346c6a2f0b6073385cad9bd7db6fb014ea06ddcc75dd7c84\"}\n{\"entity\":\"patologia_cronica\",\"rowCount\":2,\"digest\":\"80c2f245a86b231002dcd2134942fdc192bbfb7c78b0a731356f29e5227faefa\"}\n{\"entity\":\"patologia_mortale\",\"rowCount\":2,\"digest\":\"a1cb9d506bd8b04f07c330f8db5a645175ba52f3cf2226fdfd318acac8af41e8\"}\n{\"entity\":\"ospedale\",\"rowCount\":2,\"digest\":\"73c8ecbd11c7f97facafa7d367918783194fb7d628d14c877380edf811d0bb1d\"}\n{\"entity\":\"ricovero\",\"rowCount\":3,\"digest\":\"414df0a16f3a946ef23509a1245e5e75d03835bbcbfdf5096ee1684bfa3b51df\"}\n{\"entity\":\"patologia_ricovero\",\"rowCount\":4,\"digest\":\"90f8aaca9669a6715c20278e81e9d9b07c978226947443154acce3e694e53560\"}\n{\"entity\":\"progressivo_ricovero\",\"rowCount\":2,\"digest\":\"5b6f1e0b3829134adbefff24cbf3eac684e9e2f922cd42fc22bf4d6e87d3b4da\"}\n",
+  "expectedDatasetId": "1994520ec6762723e7c1b32a9d8b40d8f4028f2c137a0aaa950298da680418a7"
+}

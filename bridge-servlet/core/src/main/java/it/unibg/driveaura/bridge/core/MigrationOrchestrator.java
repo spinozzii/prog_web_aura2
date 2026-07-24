@@ -4,7 +4,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,16 +17,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
-/**
- * Servlet-independent HTTP orchestrator for the first vertical Patologia
- * migration. It never accesses either database directly.
- */
+/** Servlet-independent, schema-driven HTTP orchestrator for all entities. */
 public final class MigrationOrchestrator {
     private static final String API_VERSION = "1.0";
-    private static final String ENTITY = "patologia";
     private static final String EMPTY_DIGEST =
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    private static final Pattern CURSOR =
+            Pattern.compile("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+");
 
     private final MigrationConfig config;
     private final HttpTransport transport;
@@ -52,66 +52,79 @@ public final class MigrationOrchestrator {
 
     private Result migrateValidated(String migrationId) {
         String normalizedMigrationId = normalizeMigrationId(migrationId);
-        Manifest manifest = readManifest();
+        List<EntitySchema> schemas = EntitySchemas.ordered();
+        Manifest manifest = readManifest(schemas);
         int limit = Math.min(config.batchSize, manifest.maxBatchSize);
-        MessageDigest completeDigest = newSha256();
-        int importedRows = 0;
-        int batchSequence = 0;
-        String cursor = null;
-        String previousCode = null;
-        Set<String> seenCursors = new HashSet<String>();
-
-        do {
-            Page page = readPage(manifest, cursor, limit, previousCode);
-            byte[] canonical = PatologiaCanonicalizer.canonicalize(page.rows)
-                    .getBytes(StandardCharsets.UTF_8);
-            completeDigest.update(canonical);
-            importedRows += page.rows.size();
-            if (importedRows > manifest.rowCount) {
-                throw remoteContract("Il conteggio esportato supera il manifest.");
-            }
-
-            // The remote service exposes one terminal empty page for an empty dataset,
-            // but Django creates that run atomically during finalize with zero batches.
-            if (!page.rows.isEmpty()) {
-                sendBatch(normalizedMigrationId, manifest, batchSequence, page);
-                batchSequence++;
-                previousCode = page.rows.get(page.rows.size() - 1).cod;
-            }
-
-            if (!page.hasMore) {
-                cursor = null;
-            } else {
-                if (!seenCursors.add(page.nextCursor)) {
-                    throw remoteContract("Il cursore remoto forma un ciclo.");
-                }
-                cursor = page.nextCursor;
-            }
-        } while (cursor != null);
-
-        String completeHex = hex(completeDigest.digest());
-        if (importedRows != manifest.rowCount) {
-            throw remoteContract("Il conteggio esportato non coincide con il manifest.");
+        ArrayList<EntityResult> results = new ArrayList<EntityResult>();
+        long totalRows = 0L;
+        long totalBatches = 0L;
+        for (EntitySchema schema : schemas) {
+            EntityResult result = migrateEntity(
+                    normalizedMigrationId, manifest, manifest.entity(schema.name), schema, limit);
+            results.add(result);
+            totalRows = addExact(totalRows, result.rowCount);
+            totalBatches = addExact(totalBatches, result.batchCount);
         }
-        if (!completeHex.equals(manifest.digest)) {
-            throw remoteContract("Il digest esportato non coincide con il manifest.");
-        }
-        if (manifest.rowCount == 0 && !EMPTY_DIGEST.equals(completeHex)) {
-            throw remoteContract("Il dataset vuoto non ha il digest atteso.");
-        }
-
-        finalizeMigration(normalizedMigrationId, manifest, batchSequence);
         return new Result(
                 normalizedMigrationId,
                 manifest.datasetId,
-                ENTITY,
                 "completed",
-                importedRows,
-                batchSequence,
-                completeHex);
+                results,
+                totalRows,
+                totalBatches);
     }
 
-    private Manifest readManifest() {
+    private EntityResult migrateEntity(
+            String migrationId,
+            Manifest manifest,
+            EntityManifest entityManifest,
+            EntitySchema schema,
+            int limit) {
+        MessageDigest completeDigest = EntityCanonicalizer.newSha256();
+        int importedRows = 0;
+        int batchSequence = 0;
+        String cursor = null;
+        EntityCanonicalizer.Row previous = null;
+        Set<String> seenCursors = new HashSet<String>();
+
+        do {
+            Page page = readPage(manifest, entityManifest, schema, cursor, limit, previous);
+            completeDigest.update(EntityCanonicalizer.canonicalBytes(schema, page.rows));
+            importedRows = addExact(importedRows, page.rows.size());
+            if (importedRows > entityManifest.rowCount) {
+                throw remoteContract("Il conteggio esportato supera il manifest.");
+            }
+            if (!page.rows.isEmpty()) {
+                sendBatch(migrationId, manifest, entityManifest, schema, batchSequence, page);
+                batchSequence = addExact(batchSequence, 1);
+                previous = page.rows.get(page.rows.size() - 1);
+            }
+            if (page.hasMore) {
+                if (importedRows == entityManifest.rowCount || !seenCursors.add(page.nextCursor)) {
+                    throw remoteContract("La continuazione remota non e coerente.");
+                }
+                cursor = page.nextCursor;
+            } else {
+                cursor = null;
+            }
+        } while (cursor != null);
+
+        String completeHex = EntityCanonicalizer.hex(completeDigest.digest());
+        if (importedRows != entityManifest.rowCount) {
+            throw remoteContract("Il conteggio esportato non coincide con il manifest.");
+        }
+        if (!completeHex.equals(entityManifest.digest)) {
+            throw remoteContract("Il digest esportato non coincide con il manifest.");
+        }
+        if (entityManifest.rowCount == 0 && !EMPTY_DIGEST.equals(completeHex)) {
+            throw remoteContract("Il dataset vuoto non ha il digest atteso.");
+        }
+        finalizeMigration(migrationId, manifest, entityManifest, batchSequence);
+        return new EntityResult(
+                schema.name, importedRows, batchSequence, completeHex);
+    }
+
+    private Manifest readManifest(List<EntitySchema> schemas) {
         HttpTransport.Response response = execute(
                 "remote", "GET", config.remoteBaseUrl + "/api/v1/manifest",
                 authorization(config.remoteSecret), null);
@@ -119,36 +132,55 @@ public final class MigrationOrchestrator {
         exactFields(body, "apiVersion", "datasetId", "generatedAt", "entityOrder", "entities", "maxBatchSize");
         apiVersion(body);
         String datasetId = digest(body, "datasetId");
-        nonEmptyString(body, "generatedAt");
+        validateGeneratedAt(nonEmptyString(body, "generatedAt"));
 
         List<Object> order = list(body, "entityOrder");
-        if (order.size() != 1 || !ENTITY.equals(order.get(0))) {
-            throw remoteContract("L'ordine delle entita del manifest non e supportato.");
-        }
         List<Object> entities = list(body, "entities");
-        if (entities.size() != 1) {
-            throw remoteContract("Il manifest deve contenere solo Patologia.");
+        if (order.size() != schemas.size() || entities.size() != schemas.size()) {
+            throw remoteContract("Il manifest non contiene tutte le entita.");
         }
-        Map<String, Object> entity = object(entities.get(0));
-        exactFields(entity, "entity", "rowCount", "digest");
-        if (!ENTITY.equals(string(entity, "entity"))) {
-            throw remoteContract("Entita del manifest non valida.");
+        ArrayList<EntityManifest> entityManifests = new ArrayList<EntityManifest>();
+        ArrayList<DatasetIdentity.Descriptor> descriptors =
+                new ArrayList<DatasetIdentity.Descriptor>();
+        for (int index = 0; index < schemas.size(); index++) {
+            EntitySchema schema = schemas.get(index);
+            if (!schema.name.equals(order.get(index))) {
+                throw remoteContract("L'ordine delle entita del manifest non e valido.");
+            }
+            Map<String, Object> entity = object(entities.get(index));
+            exactFields(entity, "entity", "rowCount", "digest");
+            if (!schema.name.equals(string(entity, "entity"))) {
+                throw remoteContract("Entita del manifest non valida.");
+            }
+            int rowCount = integer(entity, "rowCount", 0, Integer.MAX_VALUE);
+            String entityDigest = digest(entity, "digest");
+            if (rowCount == 0 && !EMPTY_DIGEST.equals(entityDigest)) {
+                throw remoteContract("Digest del manifest vuoto non valido.");
+            }
+            EntityManifest entityManifest =
+                    new EntityManifest(schema.name, rowCount, entityDigest);
+            entityManifests.add(entityManifest);
+            descriptors.add(new DatasetIdentity.Descriptor(schema.name, rowCount, entityDigest));
         }
-        int rowCount = integer(entity, "rowCount", 0, Integer.MAX_VALUE);
-        String digest = digest(entity, "digest");
-        int maximum = integer(body, "maxBatchSize", 1, 100);
-        if (!datasetId.equals(digest)) {
-            throw remoteContract("Dataset e digest del manifest non coincidono.");
+        if (!datasetId.equals(DatasetIdentity.sha256(descriptors))) {
+            throw remoteContract("Dataset e descrittori del manifest non coincidono.");
         }
-        if (rowCount == 0 && !EMPTY_DIGEST.equals(digest)) {
-            throw remoteContract("Digest del manifest vuoto non valido.");
-        }
-        return new Manifest(datasetId, rowCount, digest, maximum);
+        return new Manifest(
+                datasetId,
+                entityManifests,
+                integer(body, "maxBatchSize", 1, 100));
     }
 
-    private Page readPage(Manifest manifest, String requestedCursor, int limit, String previousCode) {
+    private Page readPage(
+            Manifest manifest,
+            EntityManifest entityManifest,
+            EntitySchema schema,
+            String requestedCursor,
+            int limit,
+            EntityCanonicalizer.Row previous) {
         StringBuilder url = new StringBuilder(config.remoteBaseUrl)
-                .append("/api/v1/export/patologia?limit=").append(limit);
+                .append("/api/v1/export/").append(schema.name)
+                .append("?limit=").append(limit);
         if (requestedCursor != null) url.append("&cursor=").append(urlEncode(requestedCursor));
         HttpTransport.Response response = execute(
                 "remote", "GET", url.toString(), authorization(config.remoteSecret), null);
@@ -160,7 +192,9 @@ public final class MigrationOrchestrator {
             throw new MigrationException(
                     "REMOTE_DATASET_CHANGED", 409, "Il dataset remoto e cambiato durante la migrazione.");
         }
-        if (!ENTITY.equals(string(body, "entity"))) throw remoteContract("Entita export non valida.");
+        if (!schema.name.equals(string(body, "entity"))) {
+            throw remoteContract("Entita export non valida.");
+        }
         String echoedCursor = nullableString(body, "cursor");
         if (requestedCursor == null ? echoedCursor != null : !requestedCursor.equals(echoedCursor)) {
             throw remoteContract("Il servizio remoto non ha confermato il cursore.");
@@ -173,56 +207,51 @@ public final class MigrationOrchestrator {
         if (declaredCount != rawRows.size()) {
             throw remoteContract("Il conteggio della pagina non coincide.");
         }
-
-        List<PatologiaCanonicalizer.Patologia> rows =
-                new ArrayList<PatologiaCanonicalizer.Patologia>(rawRows.size());
-        String prior = previousCode;
+        ArrayList<EntityCanonicalizer.Row> rows =
+                new ArrayList<EntityCanonicalizer.Row>(rawRows.size());
+        EntityCanonicalizer.Row prior = previous;
         for (Object rawRow : rawRows) {
-            Map<String, Object> row = object(rawRow);
-            exactFields(row, "cod", "nome", "criticita");
-            String code = nonEmptyString(row, "cod");
-            if (code.codePointCount(0, code.length()) > 20 || code.indexOf('\0') >= 0) {
-                throw remoteContract("Codice Patologia non valido.");
+            EntityCanonicalizer.Row row = EntityCanonicalizer.validate(schema, rawRow);
+            if (prior != null && EntityCanonicalizer.compare(schema, prior, row) >= 0) {
+                throw remoteContract("Le righe non sono strettamente ordinate per chiave completa.");
             }
-            String name = nonEmptyString(row, "nome");
-            if (name.indexOf('\0') >= 0) throw remoteContract("Nome Patologia non valido.");
-            int severity = integer(row, "criticita", 1, 5);
-            if (prior != null && PatologiaCanonicalizer.compareCodes(prior, code) >= 0) {
-                throw remoteContract("Le righe Patologia non sono strettamente ordinate.");
-            }
-            rows.add(new PatologiaCanonicalizer.Patologia(code, name, severity));
-            prior = code;
+            rows.add(row);
+            prior = row;
         }
-
         String declaredDigest = digest(body, "digest");
-        if (!PatologiaCanonicalizer.sha256(rows).equals(declaredDigest)) {
+        if (!EntityCanonicalizer.sha256(schema, rows).equals(declaredDigest)) {
             throw remoteContract("Il digest della pagina non coincide.");
         }
         if (hasMore) {
-            if (rows.isEmpty() || nextCursor == null || nextCursor.isEmpty()
-                    || nextCursor.equals(requestedCursor)) {
+            if (rows.isEmpty() || !validCursor(nextCursor) || nextCursor.equals(requestedCursor)) {
                 throw remoteContract("La continuazione della pagina non e valida.");
             }
         } else if (nextCursor != null) {
             throw remoteContract("La pagina terminale contiene un cursore successivo.");
         }
-        if (rows.isEmpty() && manifest.rowCount != 0) {
+        if (rows.isEmpty() && entityManifest.rowCount != 0) {
             throw remoteContract("Pagina vuota inattesa.");
         }
         return new Page(rows, declaredDigest, hasMore, nextCursor);
     }
 
-    private void sendBatch(String migrationId, Manifest manifest, int sequence, Page page) {
+    private void sendBatch(
+            String migrationId,
+            Manifest manifest,
+            EntityManifest entityManifest,
+            EntitySchema schema,
+            int sequence,
+            Page page) {
         LinkedHashMap<String, Object> request = new LinkedHashMap<String, Object>();
         request.put("apiVersion", API_VERSION);
         request.put("datasetId", manifest.datasetId);
-        request.put("entity", ENTITY);
+        request.put("entity", schema.name);
         request.put("batchSequence", Long.valueOf(sequence));
         request.put("rowCount", Long.valueOf(page.rows.size()));
         request.put("rows", rowObjects(page.rows));
         request.put("digest", page.digest);
-        request.put("expectedRowCount", Long.valueOf(manifest.rowCount));
-        request.put("expectedDigest", manifest.digest);
+        request.put("expectedRowCount", Long.valueOf(entityManifest.rowCount));
+        request.put("expectedDigest", entityManifest.digest);
         HttpTransport.Response response = execute(
                 "local", "POST",
                 config.localBaseUrl + "/api/v1/migrations/" + migrationId + "/batches",
@@ -241,7 +270,7 @@ public final class MigrationOrchestrator {
             apiVersion(body);
             if (!migrationId.equals(string(body, "migrationId"))
                     || !manifest.datasetId.equals(string(body, "datasetId"))
-                    || !ENTITY.equals(string(body, "entity"))
+                    || !schema.name.equals(string(body, "entity"))
                     || sequence != integer(body, "batchSequence", 0, Integer.MAX_VALUE)
                     || page.rows.size() != integer(body, "rowCount", 0, Integer.MAX_VALUE)
                     || !page.digest.equals(digest(body, "digest"))) {
@@ -259,21 +288,23 @@ public final class MigrationOrchestrator {
             throw error;
         } catch (IllegalArgumentException error) {
             throw new MigrationException(
-                    "LOCAL_CONTRACT_ERROR",
-                    502,
-                    "Il servizio locale ha restituito un contratto lotto non valido.",
-                    error);
+                    "LOCAL_CONTRACT_ERROR", 502,
+                    "Il servizio locale ha restituito un contratto lotto non valido.", error);
         }
     }
 
-    private void finalizeMigration(String migrationId, Manifest manifest, int batchCount) {
+    private void finalizeMigration(
+            String migrationId,
+            Manifest manifest,
+            EntityManifest entityManifest,
+            int batchCount) {
         LinkedHashMap<String, Object> request = new LinkedHashMap<String, Object>();
         request.put("apiVersion", API_VERSION);
         request.put("datasetId", manifest.datasetId);
-        request.put("entity", ENTITY);
-        request.put("expectedRowCount", Long.valueOf(manifest.rowCount));
+        request.put("entity", entityManifest.entity);
+        request.put("expectedRowCount", Long.valueOf(entityManifest.rowCount));
         request.put("expectedBatchCount", Long.valueOf(batchCount));
-        request.put("expectedDigest", manifest.digest);
+        request.put("expectedDigest", entityManifest.digest);
         HttpTransport.Response response = execute(
                 "local", "POST",
                 config.localBaseUrl + "/api/v1/migrations/" + migrationId + "/finalize",
@@ -292,11 +323,11 @@ public final class MigrationOrchestrator {
             apiVersion(body);
             if (!migrationId.equals(string(body, "migrationId"))
                     || !manifest.datasetId.equals(string(body, "datasetId"))
-                    || !ENTITY.equals(string(body, "entity"))
+                    || !entityManifest.entity.equals(string(body, "entity"))
                     || !"completed".equals(string(body, "status"))
-                    || manifest.rowCount != integer(body, "rowCount", 0, Integer.MAX_VALUE)
+                    || entityManifest.rowCount != integer(body, "rowCount", 0, Integer.MAX_VALUE)
                     || batchCount != integer(body, "batchCount", 0, Integer.MAX_VALUE)
-                    || !manifest.digest.equals(digest(body, "digest"))) {
+                    || !entityManifest.digest.equals(digest(body, "digest"))) {
                 throw localContract("La finalizzazione locale non coincide con il manifest.");
             }
             Map<String, Object> verification = map(body, "verification");
@@ -310,10 +341,8 @@ public final class MigrationOrchestrator {
             throw error;
         } catch (IllegalArgumentException error) {
             throw new MigrationException(
-                    "LOCAL_CONTRACT_ERROR",
-                    502,
-                    "Il servizio locale ha restituito una finalizzazione non valida.",
-                    error);
+                    "LOCAL_CONTRACT_ERROR", 502,
+                    "Il servizio locale ha restituito una finalizzazione non valida.", error);
         }
     }
 
@@ -325,17 +354,13 @@ public final class MigrationOrchestrator {
         } catch (MigrationException error) {
             if ("HTTP_TIMEOUT".equals(error.code)) {
                 throw new MigrationException(
-                        service.toUpperCase(Locale.ROOT) + "_TIMEOUT",
-                        504,
-                        "Il servizio " + service + " non ha risposto entro il timeout.",
-                        error);
+                        service.toUpperCase(Locale.ROOT) + "_TIMEOUT", 504,
+                        "Il servizio " + service + " non ha risposto entro il timeout.", error);
             }
             if ("HTTP_UNAVAILABLE".equals(error.code)) {
                 throw new MigrationException(
-                        service.toUpperCase(Locale.ROOT) + "_UNAVAILABLE",
-                        502,
-                        "Il servizio " + service + " non e raggiungibile.",
-                        error);
+                        service.toUpperCase(Locale.ROOT) + "_UNAVAILABLE", 502,
+                        "Il servizio " + service + " non e raggiungibile.", error);
             }
             throw error;
         }
@@ -348,33 +373,51 @@ public final class MigrationOrchestrator {
     }
 
     private static Map<String, Object> jsonObject(String service, HttpTransport.Response response) {
-        String contentType = response.contentType.toLowerCase(Locale.ROOT).replace(" ", "");
-        if (!contentType.startsWith("application/json") || !contentType.contains("charset=utf-8")) {
+        if (!jsonUtf8(response.contentType)) {
             throw contract(service, "Content-Type JSON UTF-8 mancante.");
         }
         try {
             return object(Json.parse(response.body));
         } catch (IllegalArgumentException error) {
             throw new MigrationException(
-                    service.toUpperCase(Locale.ROOT) + "_CONTRACT_ERROR",
-                    502,
-                    "Il servizio " + service + " ha restituito JSON non valido.",
-                    error);
+                    service.toUpperCase(Locale.ROOT) + "_CONTRACT_ERROR", 502,
+                    "Il servizio " + service + " ha restituito JSON non valido.", error);
         }
+    }
+
+    private static boolean jsonUtf8(String contentType) {
+        String[] parts = contentType.split(";");
+        if (parts.length < 2 || !"application/json".equals(parts[0].trim().toLowerCase(Locale.ROOT))) {
+            return false;
+        }
+        boolean utf8 = false;
+        for (int index = 1; index < parts.length; index++) {
+            String part = parts[index].trim();
+            int separator = part.indexOf('=');
+            if (separator < 1) continue;
+            if ("charset".equals(part.substring(0, separator).trim().toLowerCase(Locale.ROOT))) {
+                String charset = part.substring(separator + 1).trim().replace("\"", "");
+                if (!"utf-8".equals(charset.toLowerCase(Locale.ROOT))) return false;
+                utf8 = true;
+            }
+        }
+        return utf8;
     }
 
     private static MigrationException upstreamStatus(String service, int status) {
         String prefix = service.toUpperCase(Locale.ROOT);
         if (status == 401 || status == 403) {
             return new MigrationException(
-                    prefix + "_AUTH_ERROR", 502, "Il servizio " + service + " ha rifiutato l'autenticazione.");
+                    prefix + "_AUTH_ERROR", 502,
+                    "Il servizio " + service + " ha rifiutato l'autenticazione.");
         }
         if (status == 409 && "remote".equals(service)) {
             return new MigrationException(
                     "REMOTE_DATASET_CHANGED", 409, "Il dataset remoto e cambiato durante la migrazione.");
         }
         return new MigrationException(
-                prefix + "_HTTP_ERROR", 502, "Il servizio " + service + " ha restituito un errore HTTP.");
+                prefix + "_HTTP_ERROR", 502,
+                "Il servizio " + service + " ha restituito un errore HTTP.");
     }
 
     private static MigrationException remoteContract(String message) {
@@ -393,15 +436,9 @@ public final class MigrationOrchestrator {
         return Collections.singletonMap("Authorization", "Bearer " + secret);
     }
 
-    private static List<Object> rowObjects(List<PatologiaCanonicalizer.Patologia> rows) {
+    private static List<Object> rowObjects(List<EntityCanonicalizer.Row> rows) {
         ArrayList<Object> result = new ArrayList<Object>(rows.size());
-        for (PatologiaCanonicalizer.Patologia row : rows) {
-            LinkedHashMap<String, Object> value = new LinkedHashMap<String, Object>();
-            value.put("cod", row.cod);
-            value.put("nome", row.nome);
-            value.put("criticita", Long.valueOf(row.criticita));
-            result.add(value);
-        }
+        for (EntityCanonicalizer.Row row : rows) result.add(row.toJsonObject());
         return result;
     }
 
@@ -480,6 +517,19 @@ public final class MigrationOrchestrator {
         return result;
     }
 
+    private static boolean validCursor(String cursor) {
+        return cursor != null && cursor.length() <= 1024 && CURSOR.matcher(cursor).matches();
+    }
+
+    private static void validateGeneratedAt(String value) {
+        if (!value.endsWith("Z")) throw new IllegalArgumentException("Timestamp UTC richiesto.");
+        try {
+            Instant.parse(value);
+        } catch (DateTimeParseException error) {
+            throw new IllegalArgumentException("Timestamp UTC non valido.", error);
+        }
+    }
+
     private static String normalizeMigrationId(String migrationId) {
         try {
             UUID value = UUID.fromString(migrationId);
@@ -494,18 +544,18 @@ public final class MigrationOrchestrator {
         }
     }
 
-    private static MessageDigest newSha256() {
-        try {
-            return MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException error) {
-            throw new IllegalStateException("SHA-256 non disponibile.", error);
+    private static int addExact(int left, int right) {
+        if (right > 0 && left > Integer.MAX_VALUE - right) {
+            throw remoteContract("Conteggio remoto troppo grande.");
         }
+        return left + right;
     }
 
-    private static String hex(byte[] bytes) {
-        StringBuilder result = new StringBuilder(bytes.length * 2);
-        for (byte value : bytes) result.append(String.format("%02x", value & 0xff));
-        return result.toString();
+    private static long addExact(long left, long right) {
+        if (right > 0L && left > Long.MAX_VALUE - right) {
+            throw remoteContract("Conteggio remoto troppo grande.");
+        }
+        return left + right;
     }
 
     private static String urlEncode(String value) {
@@ -518,26 +568,46 @@ public final class MigrationOrchestrator {
 
     private static final class Manifest {
         private final String datasetId;
-        private final int rowCount;
-        private final String digest;
+        private final List<EntityManifest> entities;
+        private final Map<String, EntityManifest> byName;
         private final int maxBatchSize;
 
-        private Manifest(String datasetId, int rowCount, String digest, int maxBatchSize) {
+        private Manifest(String datasetId, List<EntityManifest> entities, int maxBatchSize) {
             this.datasetId = datasetId;
+            this.entities = Collections.unmodifiableList(new ArrayList<EntityManifest>(entities));
+            LinkedHashMap<String, EntityManifest> index = new LinkedHashMap<String, EntityManifest>();
+            for (EntityManifest entity : entities) index.put(entity.entity, entity);
+            this.byName = Collections.unmodifiableMap(index);
+            this.maxBatchSize = maxBatchSize;
+        }
+
+        private EntityManifest entity(String name) {
+            EntityManifest value = byName.get(name);
+            if (value == null) throw new IllegalArgumentException("Entita manifest mancante.");
+            return value;
+        }
+    }
+
+    private static final class EntityManifest {
+        private final String entity;
+        private final int rowCount;
+        private final String digest;
+
+        private EntityManifest(String entity, int rowCount, String digest) {
+            this.entity = entity;
             this.rowCount = rowCount;
             this.digest = digest;
-            this.maxBatchSize = maxBatchSize;
         }
     }
 
     private static final class Page {
-        private final List<PatologiaCanonicalizer.Patologia> rows;
+        private final List<EntityCanonicalizer.Row> rows;
         private final String digest;
         private final boolean hasMore;
         private final String nextCursor;
 
         private Page(
-                List<PatologiaCanonicalizer.Patologia> rows,
+                List<EntityCanonicalizer.Row> rows,
                 String digest,
                 boolean hasMore,
                 String nextCursor) {
@@ -548,30 +618,50 @@ public final class MigrationOrchestrator {
         }
     }
 
-    public static final class Result {
-        public final String migrationId;
-        public final String datasetId;
+    public static final class EntityResult {
         public final String entity;
-        public final String status;
         public final int rowCount;
         public final int batchCount;
         public final String digest;
 
-        private Result(
-                String migrationId,
-                String datasetId,
-                String entity,
-                String status,
-                int rowCount,
-                int batchCount,
-                String digest) {
-            this.migrationId = migrationId;
-            this.datasetId = datasetId;
+        private EntityResult(String entity, int rowCount, int batchCount, String digest) {
             this.entity = entity;
-            this.status = status;
             this.rowCount = rowCount;
             this.batchCount = batchCount;
             this.digest = digest;
+        }
+
+        private Map<String, Object> toJsonObject() {
+            LinkedHashMap<String, Object> value = new LinkedHashMap<String, Object>();
+            value.put("entity", entity);
+            value.put("rowCount", Long.valueOf(rowCount));
+            value.put("batchCount", Long.valueOf(batchCount));
+            value.put("digest", digest);
+            return value;
+        }
+    }
+
+    public static final class Result {
+        public final String migrationId;
+        public final String datasetId;
+        public final String status;
+        public final List<EntityResult> entities;
+        public final long totalRowCount;
+        public final long totalBatchCount;
+
+        private Result(
+                String migrationId,
+                String datasetId,
+                String status,
+                List<EntityResult> entities,
+                long totalRowCount,
+                long totalBatchCount) {
+            this.migrationId = migrationId;
+            this.datasetId = datasetId;
+            this.status = status;
+            this.entities = Collections.unmodifiableList(new ArrayList<EntityResult>(entities));
+            this.totalRowCount = totalRowCount;
+            this.totalBatchCount = totalBatchCount;
         }
 
         public Map<String, Object> toJsonObject() {
@@ -579,11 +669,13 @@ public final class MigrationOrchestrator {
             value.put("apiVersion", API_VERSION);
             value.put("migrationId", migrationId);
             value.put("datasetId", datasetId);
-            value.put("entity", entity);
             value.put("status", status);
-            value.put("rowCount", Long.valueOf(rowCount));
-            value.put("batchCount", Long.valueOf(batchCount));
-            value.put("digest", digest);
+            value.put("entityOrder", new ArrayList<String>(EntitySchemas.names()));
+            ArrayList<Object> entityValues = new ArrayList<Object>();
+            for (EntityResult entity : entities) entityValues.add(entity.toJsonObject());
+            value.put("entities", entityValues);
+            value.put("totalRowCount", Long.valueOf(totalRowCount));
+            value.put("totalBatchCount", Long.valueOf(totalBatchCount));
             LinkedHashMap<String, Object> verification = new LinkedHashMap<String, Object>();
             verification.put("rowCountMatches", Boolean.TRUE);
             verification.put("digestMatches", Boolean.TRUE);

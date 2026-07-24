@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../src/ApiException.php';
 require_once __DIR__ . '/../src/ApiResponse.php';
-require_once __DIR__ . '/../src/PatologiaCanonicalizer.php';
-require_once __DIR__ . '/../src/PatologiaSource.php';
+require_once __DIR__ . '/../src/EntitySchema.php';
+require_once __DIR__ . '/../src/SchemaRegistry.php';
+require_once __DIR__ . '/../src/EntityCanonicalizer.php';
+require_once __DIR__ . '/../src/EntitySource.php';
+require_once __DIR__ . '/../src/DatasetIdentity.php';
 require_once __DIR__ . '/../src/CursorCodec.php';
-require_once __DIR__ . '/../src/PatologiaApi.php';
-require_once __DIR__ . '/FixturePatologiaSource.php';
+require_once __DIR__ . '/../src/MigrationApi.php';
+require_once __DIR__ . '/FixtureEntitySource.php';
 
 use DriveAura\Remote\ApiResponse;
 use DriveAura\Remote\CursorCodec;
-use DriveAura\Remote\PatologiaApi;
-use DriveAura\Remote\PatologiaCanonicalizer;
-use DriveAura\Remote\Tests\FixturePatologiaSource;
+use DriveAura\Remote\DatasetIdentity;
+use DriveAura\Remote\EntityCanonicalizer;
+use DriveAura\Remote\MigrationApi;
+use DriveAura\Remote\SchemaRegistry;
+use DriveAura\Remote\Tests\FixtureEntitySource;
 
 set_error_handler(static function (int $severity, string $message, string $file, int $line): never {
     throw new ErrorException($message, 0, $severity, $file, $line);
@@ -50,32 +55,44 @@ function assertError(int $status, string $code, ApiResponse $response, string $c
     }
 }
 
-/** @param array<string, mixed> $payload */
-function signedCursor(array $payload, string $secret): string
+/** @return array<string, mixed> */
+function loadFixture(): array
 {
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-    $encoded = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
-    $signature = hash_hmac('sha256', "drive-aura-cursor-v1\n" . $encoded, $secret, true);
-    return $encoded . '.' . rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+    return json_decode(
+        (string) file_get_contents(dirname(__DIR__, 2) . '/tests/fixtures/t03-dataset.json'),
+        true,
+        64,
+        JSON_THROW_ON_ERROR
+    );
 }
 
-$rows = [
-    ['cod' => 'P003', 'nome' => 'Tre', 'criticita' => 3],
-    ['cod' => 'P001', 'nome' => 'Uno', 'criticita' => 1],
-    ['cod' => 'P002', 'nome' => 'Dùe', 'criticita' => 5],
-];
-$source = new FixturePatologiaSource($rows);
+/** @param array<string, array<mixed>> $rowsByEntity */
+function newApi(
+    array $rowsByEntity,
+    SchemaRegistry $registry,
+    CursorCodec $codec,
+    ?FixtureEntitySource &$source = null
+): MigrationApi {
+    $source = new FixtureEntitySource($rowsByEntity);
+    return new MigrationApi(
+        $source,
+        $registry,
+        'test-api-secret',
+        $codec,
+        static fn (): string => '2026-07-24T12:00:00Z'
+    );
+}
+
+$fixture = loadFixture();
+$registry = SchemaRegistry::fromFile(dirname(__DIR__, 2) . '/shared/entity-schema.json');
+$rowsByEntity = $fixture['rowsByEntity'];
+$datasetId = $fixture['expectedDatasetId'];
 $now = 1_721_822_400;
 $cursorSecret = 'test-cursor-secret';
 $codec = new CursorCodec($cursorSecret, static function () use (&$now): int {
     return $now;
 }, 300);
-$api = new PatologiaApi(
-    $source,
-    'test-api-secret',
-    $codec,
-    static fn (): string => '2026-07-24T12:00:00Z'
-);
+$api = newApi($rowsByEntity, $registry, $codec, $source);
 $auth = ['Authorization' => 'Bearer test-api-secret'];
 
 assertError(401, 'UNAUTHORIZED', $api->handle('GET', '/api/v1/manifest', [], []), 'segreto assente');
@@ -90,78 +107,84 @@ assertStatus(
     $api->handle('GET', '/api/v1/manifest', [], ['authorization' => 'bearer test-api-secret']),
     'schema Bearer case-insensitive'
 );
-assertError(405, 'METHOD_NOT_ALLOWED', $api->handle('POST', '/api/v1/manifest', [], $auth), 'metodo errato');
-assertError(404, 'NOT_FOUND', $api->handle('GET', '/api/v1/non-esiste', [], $auth), 'rotta assente');
+assertError(405, 'METHOD_NOT_ALLOWED', $api->handle('POST', '/api/v1/manifest', [], $auth), 'metodo');
+assertError(404, 'NOT_FOUND', $api->handle('GET', '/api/v1/non-esiste', [], $auth), 'rotta');
 assertError(
     400,
     'INVALID_REQUEST',
     $api->handle('GET', '/api/v1/manifest', ['unexpected' => '1'], $auth),
-    'query manifest inattesa'
+    'query manifest'
+);
+assertError(
+    400,
+    'INVALID_ENTITY',
+    $api->handle('GET', '/api/v1/export/non_ammessa', ['limit' => '1'], $auth),
+    'entita non ammessa'
 );
 
 $manifest = $api->handle('GET', '/api/v1/manifest', [], $auth);
 assertStatus(200, $manifest, 'manifest');
-$expectedDatasetDigest = PatologiaCanonicalizer::sha256($rows);
 assertSameValue('1.0', $manifest->body['apiVersion'] ?? null, 'manifest apiVersion');
-assertSameValue($expectedDatasetDigest, $manifest->body['datasetId'] ?? null, 'manifest datasetId');
+assertSameValue($datasetId, $manifest->body['datasetId'] ?? null, 'manifest datasetId');
 assertSameValue('2026-07-24T12:00:00Z', $manifest->body['generatedAt'] ?? null, 'manifest generatedAt');
-assertSameValue(['patologia'], $manifest->body['entityOrder'] ?? null, 'manifest entityOrder');
-assertSameValue(100, $manifest->body['maxBatchSize'] ?? null, 'manifest maxBatchSize');
-assertSameValue('patologia', $manifest->body['entities'][0]['entity'] ?? null, 'manifest entity');
-assertSameValue(3, $manifest->body['entities'][0]['rowCount'] ?? null, 'manifest rowCount');
-assertSameValue($expectedDatasetDigest, $manifest->body['entities'][0]['digest'] ?? null, 'manifest digest');
-
-$first = $api->handle('GET', '/api/v1/export/patologia', ['limit' => '2'], $auth);
-assertStatus(200, $first, 'prima pagina');
-assertSameValue(null, $first->body['cursor'] ?? null, 'prima pagina cursor');
-assertSameValue(2, $first->body['rowCount'] ?? null, 'prima pagina rowCount');
-assertSameValue(true, $first->body['hasMore'] ?? null, 'prima pagina hasMore');
-assertSameValue('P001', $first->body['rows'][0]['cod'] ?? null, 'prima pagina ordine 1');
-assertSameValue('P002', $first->body['rows'][1]['cod'] ?? null, 'prima pagina ordine 2');
-assertSameValue(
-    PatologiaCanonicalizer::sha256($first->body['rows']),
-    $first->body['digest'] ?? null,
-    'prima pagina digest'
-);
-if (!is_string($first->body['nextCursor'] ?? null) || $first->body['nextCursor'] === '') {
-    failTest('Prima pagina: nextCursor assente.');
+assertSameValue($registry->order(), $manifest->body['entityOrder'] ?? null, 'manifest ordine');
+assertSameValue(MigrationApi::MAX_BATCH_SIZE, $manifest->body['maxBatchSize'] ?? null, 'manifest massimo');
+foreach ($registry->order() as $index => $entity) {
+    $expected = $fixture['expectedByEntity'][$entity];
+    assertSameValue($entity, $manifest->body['entities'][$index]['entity'] ?? null, "manifest {$entity}");
+    assertSameValue($expected['rowCount'], $manifest->body['entities'][$index]['rowCount'] ?? null, "conteggio {$entity}");
+    assertSameValue($expected['expectedSha256'], $manifest->body['entities'][$index]['digest'] ?? null, "digest {$entity}");
 }
 
-$cursor = $first->body['nextCursor'];
-$second = $api->handle(
-    'GET',
-    '/api/v1/export/patologia',
-    ['limit' => '2', 'cursor' => $cursor],
-    $auth
-);
-assertStatus(200, $second, 'seconda pagina');
-assertSameValue($cursor, $second->body['cursor'] ?? null, 'seconda pagina cursor echo');
-assertSameValue(1, $second->body['rowCount'] ?? null, 'seconda pagina rowCount');
-assertSameValue(false, $second->body['hasMore'] ?? null, 'seconda pagina hasMore');
-assertSameValue(null, $second->body['nextCursor'] ?? null, 'seconda pagina nextCursor');
-assertSameValue('P003', $second->body['rows'][0]['cod'] ?? null, 'seconda pagina ordine');
-assertSameValue(
-    PatologiaCanonicalizer::sha256($second->body['rows']),
-    $second->body['digest'] ?? null,
-    'seconda pagina digest'
-);
+// Traverse every entity one row at a time. This exercises both simple and
+// complete composite key tuples across equal prefixes and entity boundaries.
+foreach ($registry->all() as $schema) {
+    $cursor = null;
+    $collected = [];
+    do {
+        $query = ['limit' => '1'];
+        if ($cursor !== null) {
+            $query['cursor'] = $cursor;
+        }
+        $response = $api->handle('GET', '/api/v1/export/' . $schema->name, $query, $auth);
+        assertStatus(200, $response, 'pagina ' . $schema->name);
+        assertSameValue($datasetId, $response->body['datasetId'] ?? null, 'dataset pagina ' . $schema->name);
+        assertSameValue($cursor, $response->body['cursor'] ?? null, 'echo cursore ' . $schema->name);
+        assertSameValue(
+            EntityCanonicalizer::sha256($schema, $response->body['rows']),
+            $response->body['digest'] ?? null,
+            'digest pagina ' . $schema->name
+        );
+        array_push($collected, ...$response->body['rows']);
+        $cursor = $response->body['nextCursor'];
+        if (($response->body['hasMore'] ?? null) !== ($cursor !== null)) {
+            failTest('Coerenza hasMore/cursore non valida: ' . $schema->name);
+        }
+    } while ($cursor !== null);
 
-$defaultLimit = $api->handle('GET', '/api/v1/export/patologia', [], $auth);
-assertStatus(200, $defaultLimit, 'limite predefinito');
-assertSameValue(3, $defaultLimit->body['rowCount'] ?? null, 'limite predefinito rowCount');
+    assertSameValue(
+        $schema->sorted($schema->normalizeRows($rowsByEntity[$schema->name])),
+        $collected,
+        'raccolta completa ' . $schema->name
+    );
+}
 
-assertError(
-    400,
-    'INVALID_ENTITY',
-    $api->handle('GET', '/api/v1/export/ospedale', ['limit' => '1'], $auth),
-    'entità non valida'
-);
+$ricoveroFirst = $api->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth);
+assertStatus(200, $ricoveroFirst, 'prima pagina ricovero');
+$decodedRicovero = $codec->decode($ricoveroFirst->body['nextCursor']);
+assertSameValue(['H001', 1], $decodedRicovero['after'], 'tupla cursore ricovero');
+
+$relationFirst = $api->handle('GET', '/api/v1/export/patologia_ricovero', ['limit' => '1'], $auth);
+assertStatus(200, $relationFirst, 'prima pagina relazione');
+$decodedRelation = $codec->decode($relationFirst->body['nextCursor']);
+assertSameValue(['H001', 1, 'P001'], $decodedRelation['after'], 'tupla cursore relazione');
+
 foreach (['0', '-1', '101', '1.0', 'abc', ' 1', str_repeat('9', 100)] as $invalidLimit) {
     assertError(
         400,
         'INVALID_LIMIT',
         $api->handle('GET', '/api/v1/export/patologia', ['limit' => $invalidLimit], $auth),
-        'limite non valido ' . $invalidLimit
+        'limite ' . $invalidLimit
     );
 }
 assertError(
@@ -173,154 +196,188 @@ assertError(
 assertError(
     400,
     'INVALID_REQUEST',
-    $api->handle('GET', '/api/v1/export/patologia', ['limit' => '1', 'other' => 'x'], $auth),
-    'parametro export inatteso'
+    $api->handle('GET', '/api/v1/export/patologia', ['other' => 'x'], $auth),
+    'query export'
 );
 assertError(
     400,
     'INVALID_CURSOR',
-    $api->handle('GET', '/api/v1/export/patologia', ['limit' => '1', 'cursor' => ''], $auth),
+    $api->handle('GET', '/api/v1/export/patologia', ['cursor' => ''], $auth),
     'cursore vuoto'
 );
 assertError(
     400,
     'INVALID_CURSOR',
-    $api->handle('GET', '/api/v1/export/patologia', ['limit' => '1', 'cursor' => ['x']], $auth),
+    $api->handle('GET', '/api/v1/export/patologia', ['cursor' => ['x']], $auth),
     'cursore array'
 );
 
-foreach ([
-    $cursor . 'x',
-    substr($cursor, 0, -1),
-    '*.' . str_repeat('A', 43),
-    str_repeat('A', 1025),
-] as $invalidCursor) {
+$validCursor = $ricoveroFirst->body['nextCursor'];
+foreach ([$validCursor . 'x', substr($validCursor, 0, -1), '*.' . str_repeat('A', 43), str_repeat('A', 4097)] as $bad) {
+    assertError(
+        400,
+        'INVALID_CURSOR',
+        $api->handle('GET', '/api/v1/export/ricovero', ['limit' => '1', 'cursor' => $bad], $auth),
+        'cursore alterato'
+    );
+}
+assertError(
+    400,
+    'INVALID_CURSOR',
+    $api->handle(
+        'GET',
+        '/api/v1/export/ricovero',
+        ['limit' => '1', 'cursor' => $codec->encode('ospedale', $datasetId, ['H001'])],
+        $auth
+    ),
+    'cursore altra entita'
+);
+foreach ([['H001'], ['H001', '1'], ['H001', 1, 'P001']] as $wrongTuple) {
     assertError(
         400,
         'INVALID_CURSOR',
         $api->handle(
             'GET',
-            '/api/v1/export/patologia',
-            ['limit' => '1', 'cursor' => $invalidCursor],
+            '/api/v1/export/ricovero',
+            ['limit' => '1', 'cursor' => $codec->encode('ricovero', $datasetId, $wrongTuple)],
             $auth
         ),
-        'cursore alterato'
+        'forma cursore'
     );
 }
-
-$malformedSignedCursor = signedCursor([
-    'v' => 1,
-    'entity' => 'patologia',
-    'datasetId' => $expectedDatasetDigest,
-    'after' => 'P001',
-], $cursorSecret);
-assertError(
-    400,
-    'INVALID_CURSOR',
-    $api->handle(
-        'GET',
-        '/api/v1/export/patologia',
-        ['limit' => '1', 'cursor' => $malformedSignedCursor],
-        $auth
-    ),
-    'payload cursore incompleto'
-);
-
-$otherEntityCursor = $codec->encode('ospedale', $expectedDatasetDigest, 'P001');
-assertError(
-    400,
-    'INVALID_CURSOR',
-    $api->handle(
-        'GET',
-        '/api/v1/export/patologia',
-        ['limit' => '1', 'cursor' => $otherEntityCursor],
-        $auth
-    ),
-    'cursore altra entità'
-);
-$otherDatasetCursor = $codec->encode('patologia', str_repeat('0', 64), 'P001');
 assertError(
     409,
     'DATASET_CHANGED',
     $api->handle(
         'GET',
-        '/api/v1/export/patologia',
-        ['limit' => '1', 'cursor' => $otherDatasetCursor],
+        '/api/v1/export/ricovero',
+        [
+            'limit' => '1',
+            'cursor' => $codec->encode('ricovero', str_repeat('0', 64), ['H001', 1]),
+        ],
         $auth
     ),
     'cursore altro dataset'
 );
 
 $expiryNow = 1000;
-$expiryCodec = new CursorCodec(
-    $cursorSecret,
-    static function () use (&$expiryNow): int {
-        return $expiryNow;
-    },
-    10
-);
-$expiredApi = new PatologiaApi(
-    new FixturePatologiaSource($rows),
-    'test-api-secret',
-    $expiryCodec,
-    static fn (): string => '2026-07-24T12:00:00Z'
-);
-$expiringPage = $expiredApi->handle('GET', '/api/v1/export/patologia', ['limit' => '1'], $auth);
-assertStatus(200, $expiringPage, 'pagina con cursore a scadenza');
+$expiryCodec = new CursorCodec($cursorSecret, static function () use (&$expiryNow): int {
+    return $expiryNow;
+}, 10);
+$expiryApi = newApi($rowsByEntity, $registry, $expiryCodec, $expirySource);
+$expiring = $expiryApi->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth);
+assertStatus(200, $expiring, 'cursore a scadenza');
 $expiryNow = 1011;
 assertError(
     400,
     'INVALID_CURSOR',
-    $expiredApi->handle(
+    $expiryApi->handle(
         'GET',
-        '/api/v1/export/patologia',
-        ['limit' => '1', 'cursor' => $expiringPage->body['nextCursor']],
+        '/api/v1/export/ricovero',
+        ['limit' => '1', 'cursor' => $expiring->body['nextCursor']],
         $auth
     ),
     'cursore scaduto'
 );
 
-$source->rows[] = ['cod' => 'P004', 'nome' => 'Quattro', 'criticita' => 4];
+// A change in any entity invalidates a cursor, not only a change in the
+// entity currently being exported.
+$changedApi = newApi($rowsByEntity, $registry, $codec, $changedSource);
+$changedFirst = $changedApi->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth);
+$changedSource->rowsByEntity['cittadino'][0]['indirizzo'] = 'Indirizzo cambiato';
 assertError(
     409,
     'DATASET_CHANGED',
-    $api->handle('GET', '/api/v1/export/patologia', ['limit' => '2', 'cursor' => $cursor], $auth),
-    'dataset cambiato'
+    $changedApi->handle(
+        'GET',
+        '/api/v1/export/ricovero',
+        ['limit' => '1', 'cursor' => $changedFirst->body['nextCursor']],
+        $auth
+    ),
+    'dataset cambiato fra pagine'
 );
 
-$emptyApi = new PatologiaApi(
-    new FixturePatologiaSource([]),
-    'test-api-secret',
-    new CursorCodec($cursorSecret, static fn (): int => 1000),
-    static fn (): string => '2026-07-24T12:00:00Z'
+$raceApi = newApi($rowsByEntity, $registry, $codec, $raceSource);
+$raceSource->afterNextPage(static function (FixtureEntitySource $source): void {
+    $source->rowsByEntity['patologia'][0]['nome'] = 'Mutata durante la pagina';
+});
+assertError(
+    409,
+    'DATASET_CHANGED',
+    $raceApi->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth),
+    'dataset cambiato durante pagina'
 );
-$emptyManifest = $emptyApi->handle('GET', '/api/v1/manifest', [], $auth);
-$emptyDigest = hash('sha256', '');
-assertStatus(200, $emptyManifest, 'manifest vuoto');
-assertSameValue(0, $emptyManifest->body['entities'][0]['rowCount'] ?? null, 'manifest vuoto rowCount');
-assertSameValue($emptyDigest, $emptyManifest->body['entities'][0]['digest'] ?? null, 'manifest vuoto digest');
-$emptyExport = $emptyApi->handle('GET', '/api/v1/export/patologia', ['limit' => '10'], $auth);
-assertStatus(200, $emptyExport, 'export vuoto');
-assertSameValue([], $emptyExport->body['rows'] ?? null, 'export vuoto rows');
-assertSameValue(0, $emptyExport->body['rowCount'] ?? null, 'export vuoto rowCount');
-assertSameValue(false, $emptyExport->body['hasMore'] ?? null, 'export vuoto hasMore');
-assertSameValue(null, $emptyExport->body['nextCursor'] ?? null, 'export vuoto nextCursor');
-assertSameValue($emptyDigest, $emptyExport->body['digest'] ?? null, 'export vuoto digest');
 
-$invalidSourceApi = new PatologiaApi(
-    new FixturePatologiaSource([
-        ['cod' => 'P001', 'nome' => 'Uno', 'criticita' => '1'],
-    ]),
-    'test-api-secret',
-    new CursorCodec($cursorSecret, static fn (): int => 1000),
-    static fn (): string => '2026-07-24T12:00:00Z'
-);
+foreach ([
+    ['entity' => 'cittadino', 'field' => 'data_nascita', 'value' => '2023-02-29'],
+    ['entity' => 'cittadino', 'field' => 'data_nascita', 'value' => '2024-2-29'],
+    ['entity' => 'ricovero', 'field' => 'costo', 'value' => '1.2'],
+    ['entity' => 'ricovero', 'field' => 'costo', 'value' => '01.20'],
+    ['entity' => 'ricovero', 'field' => 'durata', 'value' => 3651],
+    ['entity' => 'patologia', 'field' => 'nome', 'value' => ''],
+] as $invalid) {
+    $invalidRows = $rowsByEntity;
+    $invalidRows[$invalid['entity']][0][$invalid['field']] = $invalid['value'];
+    $invalidApi = newApi($invalidRows, $registry, $codec, $invalidSource);
+    assertError(
+        500,
+        'INVALID_SOURCE_DATA',
+        $invalidApi->handle('GET', '/api/v1/manifest', [], $auth),
+        'dato sorgente non valido ' . $invalid['entity'] . '.' . $invalid['field']
+    );
+}
+
+$extraRows = $rowsByEntity;
+$extraRows['patologia'][0]['extra'] = 'vietato';
+$extraApi = newApi($extraRows, $registry, $codec, $extraSource);
 assertError(
     500,
     'INVALID_SOURCE_DATA',
-    $invalidSourceApi->handle('GET', '/api/v1/manifest', [], $auth),
-    'riga sorgente non valida'
+    $extraApi->handle('GET', '/api/v1/manifest', [], $auth),
+    'campo sorgente extra'
 );
 
+$missingRows = $rowsByEntity;
+unset($missingRows['ricovero'][0]['costo']);
+$missingApi = newApi($missingRows, $registry, $codec, $missingSource);
+assertError(
+    500,
+    'INVALID_SOURCE_DATA',
+    $missingApi->handle('GET', '/api/v1/manifest', [], $auth),
+    'campo sorgente mancante'
+);
+
+$duplicateRows = $rowsByEntity;
+$duplicateRows['ricovero'][] = $duplicateRows['ricovero'][0];
+$duplicateApi = newApi($duplicateRows, $registry, $codec, $duplicateSource);
+assertError(
+    500,
+    'INVALID_SOURCE_DATA',
+    $duplicateApi->handle('GET', '/api/v1/manifest', [], $auth),
+    'chiave sorgente duplicata'
+);
+
+$emptyRows = [];
+foreach ($registry->order() as $entity) {
+    $emptyRows[$entity] = [];
+}
+$emptyApi = newApi($emptyRows, $registry, $codec, $emptySource);
+$emptyManifest = $emptyApi->handle('GET', '/api/v1/manifest', [], $auth);
+assertStatus(200, $emptyManifest, 'manifest vuoto');
+foreach ($emptyManifest->body['entities'] as $metadata) {
+    assertSameValue(0, $metadata['rowCount'], 'conteggio vuoto');
+    assertSameValue(hash('sha256', ''), $metadata['digest'], 'digest vuoto');
+}
+$emptyPage = $emptyApi->handle('GET', '/api/v1/export/patologia', ['limit' => '10'], $auth);
+assertStatus(200, $emptyPage, 'pagina vuota');
+assertSameValue([], $emptyPage->body['rows'] ?? null, 'righe vuote');
+assertSameValue(false, $emptyPage->body['hasMore'] ?? null, 'hasMore vuoto');
+assertSameValue(null, $emptyPage->body['nextCursor'] ?? null, 'cursore vuoto');
+assertSameValue(hash('sha256', ''), $emptyPage->body['digest'] ?? null, 'digest pagina vuota');
+
+$computed = DatasetIdentity::fromRows($registry, $rowsByEntity);
+assertSameValue($fixture['expectedDatasetCanonical'], $computed['canonical'], 'descrittore dataset');
+assertSameValue($fixture['expectedDatasetId'], $computed['datasetId'], 'dataset id');
+
 restore_error_handler();
-echo "API Patologia PHP valida.\n";
+echo "API multi-entità PHP valida.\n";

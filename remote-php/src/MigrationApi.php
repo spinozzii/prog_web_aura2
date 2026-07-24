@@ -4,24 +4,28 @@ declare(strict_types=1);
 
 namespace DriveAura\Remote;
 
-final class PatologiaApi
+/** Manifest and paginated export API for the complete ordered dataset. */
+final class MigrationApi
 {
     public const MAX_BATCH_SIZE = 100;
-    public const ENTITY = 'patologia';
-
     private const DEFAULT_BATCH_SIZE = 50;
 
     private readonly \Closure $clock;
 
     /** @param callable(): string $clock */
     public function __construct(
-        private readonly PatologiaSource $source,
+        private readonly EntitySource $source,
+        private readonly SchemaRegistry $registry,
         private readonly string $apiSecret,
         private readonly CursorCodec $cursorCodec,
         callable $clock
     ) {
         if ($apiSecret === '') {
-            throw new ApiException(503, 'SERVICE_NOT_CONFIGURED', 'Il segreto API remoto non è configurato.');
+            throw new ApiException(
+                503,
+                'SERVICE_NOT_CONFIGURED',
+                'Il segreto API remoto non è configurato.'
+            );
         }
         $this->clock = \Closure::fromCallable($clock);
     }
@@ -43,35 +47,30 @@ final class PatologiaApi
                 }
                 return new ApiResponse(200, $this->manifest());
             }
-            $exportPrefix = '/api/v1/export/';
-            if (strncmp($path, $exportPrefix, strlen($exportPrefix)) === 0) {
-                $entity = substr($path, strlen($exportPrefix));
-                return new ApiResponse(200, $this->export($entity, $query));
+            $prefix = '/api/v1/export/';
+            if (strncmp($path, $prefix, strlen($prefix)) === 0) {
+                return new ApiResponse(200, $this->export(substr($path, strlen($prefix)), $query));
             }
             throw new ApiException(404, 'NOT_FOUND', 'Risorsa non trovata.');
         } catch (ApiException $error) {
             return ApiResponse::error($error);
         } catch (\Throwable) {
-            return ApiResponse::error(new ApiException(500, 'INTERNAL_ERROR', 'Errore interno del servizio remoto.'));
+            return ApiResponse::error(
+                new ApiException(500, 'INTERNAL_ERROR', 'Errore interno del servizio remoto.')
+            );
         }
     }
 
     /** @return array<string, mixed> */
     private function manifest(): array
     {
-        $rows = $this->validatedRows($this->source->allRows());
-        $digest = PatologiaCanonicalizer::sha256($rows);
-
+        $snapshot = DatasetIdentity::capture($this->registry, $this->source);
         return [
             'apiVersion' => '1.0',
-            'datasetId' => $digest,
+            'datasetId' => $snapshot['datasetId'],
             'generatedAt' => ($this->clock)(),
-            'entityOrder' => [self::ENTITY],
-            'entities' => [[
-                'entity' => self::ENTITY,
-                'rowCount' => count($rows),
-                'digest' => $digest,
-            ]],
+            'entityOrder' => $this->registry->order(),
+            'entities' => $snapshot['entities'],
             'maxBatchSize' => self::MAX_BATCH_SIZE,
         ];
     }
@@ -82,9 +81,10 @@ final class PatologiaApi
      */
     private function export(string $entity, array $query): array
     {
-        if ($entity !== self::ENTITY) {
+        if (!$this->registry->has($entity)) {
             throw new ApiException(400, 'INVALID_ENTITY', 'Entità non ammessa.');
         }
+        $schema = $this->registry->get($entity);
         foreach (array_keys($query) as $name) {
             if (!is_string($name) || ($name !== 'limit' && $name !== 'cursor')) {
                 throw new ApiException(400, 'INVALID_REQUEST', 'La richiesta non è valida.');
@@ -100,42 +100,56 @@ final class PatologiaApi
             throw new ApiException(400, 'INVALID_LIMIT', 'Il limite supera il massimo consentito.');
         }
 
-        $allRows = $this->validatedRows($this->source->allRows());
-        $datasetId = PatologiaCanonicalizer::sha256($allRows);
+        $before = DatasetIdentity::capture($this->registry, $this->source);
+        $datasetId = $before['datasetId'];
         $cursor = null;
         $after = null;
         if (array_key_exists('cursor', $query)) {
             if (!is_string($query['cursor']) || $query['cursor'] === '') {
-                throw new ApiException(400, 'INVALID_CURSOR', 'Il cursore non è valido.');
+                throw self::invalidCursor();
             }
             $cursor = $query['cursor'];
             $decoded = $this->cursorCodec->decode($cursor);
-            if ($decoded['entity'] !== self::ENTITY) {
-                throw new ApiException(400, 'INVALID_CURSOR', 'Il cursore non è valido.');
+            if ($decoded['entity'] !== $entity) {
+                throw self::invalidCursor();
             }
             if ($decoded['datasetId'] !== $datasetId) {
                 throw new ApiException(409, 'DATASET_CHANGED', 'Il dataset remoto è cambiato.');
             }
-            $after = $decoded['after'];
+            try {
+                $after = $schema->normalizeKeyTuple($decoded['after']);
+            } catch (\InvalidArgumentException) {
+                throw self::invalidCursor();
+            }
         }
 
-        $page = $this->validatedRows($this->source->rowsAfter($after, $limit + 1), true, $after);
+        $page = $schema->normalizeRows(
+            $this->source->rowsAfter($schema, $after, $limit + 1),
+            true,
+            $after
+        );
         if (count($page) > $limit + 1) {
-            throw new ApiException(500, 'INVALID_SOURCE_DATA', 'La sorgente remota non rispetta il contratto.');
+            throw new ApiException(
+                500,
+                'INVALID_SOURCE_DATA',
+                'La sorgente remota non rispetta il contratto.'
+            );
         }
 
-        // A second digest closes the race between the snapshot used by the
-        // cursor and the page query without exposing database internals.
-        $confirmedRows = $this->validatedRows($this->source->allRows());
-        if (PatologiaCanonicalizer::sha256($confirmedRows) !== $datasetId) {
+        // Re-capture every entity after the page query: the returned global
+        // dataset id then proves that no table changed across this request.
+        $afterSnapshot = DatasetIdentity::capture($this->registry, $this->source);
+        if ($afterSnapshot['datasetId'] !== $datasetId) {
             throw new ApiException(409, 'DATASET_CHANGED', 'Il dataset remoto è cambiato.');
         }
+
         $knownRows = [];
-        foreach ($confirmedRows as $knownRow) {
-            $knownRows[$knownRow['cod']] = $knownRow;
+        foreach ($afterSnapshot['rowsByEntity'][$entity] as $knownRow) {
+            $knownRows[EntitySchema::keyIdentity($schema->keyOf($knownRow))] = $knownRow;
         }
         foreach ($page as $row) {
-            if (!isset($knownRows[$row['cod']]) || $knownRows[$row['cod']] !== $row) {
+            $identity = EntitySchema::keyIdentity($schema->keyOf($row));
+            if (!isset($knownRows[$identity]) || $knownRows[$identity] !== $row) {
                 throw new ApiException(409, 'DATASET_CHANGED', 'Il dataset remoto è cambiato.');
             }
         }
@@ -145,25 +159,29 @@ final class PatologiaApi
         $nextCursor = null;
         if ($hasMore) {
             if ($rows === []) {
-                throw new ApiException(500, 'INVALID_SOURCE_DATA', 'La sorgente remota non rispetta il contratto.');
+                throw new ApiException(
+                    500,
+                    'INVALID_SOURCE_DATA',
+                    'La sorgente remota non rispetta il contratto.'
+                );
             }
             $nextCursor = $this->cursorCodec->encode(
-                self::ENTITY,
+                $entity,
                 $datasetId,
-                $rows[count($rows) - 1]['cod']
+                $schema->keyOf($rows[count($rows) - 1])
             );
         }
 
         return [
             'apiVersion' => '1.0',
             'datasetId' => $datasetId,
-            'entity' => self::ENTITY,
+            'entity' => $entity,
             'cursor' => $cursor,
             'nextCursor' => $nextCursor,
             'hasMore' => $hasMore,
             'rowCount' => count($rows),
             'rows' => $rows,
-            'digest' => PatologiaCanonicalizer::sha256($rows),
+            'digest' => EntityCanonicalizer::sha256($schema, $rows),
         ];
     }
 
@@ -186,52 +204,8 @@ final class PatologiaApi
         }
     }
 
-    /**
-     * @param array<mixed> $rows
-     * @return list<array{cod: string, nome: string, criticita: int}>
-     */
-    private function validatedRows(array $rows, bool $requireSorted = false, ?string $after = null): array
+    private static function invalidCursor(): ApiException
     {
-        if (!array_is_list($rows)) {
-            throw new ApiException(500, 'INVALID_SOURCE_DATA', 'La sorgente remota non rispetta il contratto.');
-        }
-
-        $result = [];
-        $seen = [];
-        $previous = $after;
-        foreach ($rows as $row) {
-            if (
-                !is_array($row)
-                || count($row) !== 3
-                || !array_key_exists('cod', $row)
-                || !array_key_exists('nome', $row)
-                || !array_key_exists('criticita', $row)
-                || !is_string($row['cod'])
-                || !is_string($row['nome'])
-                || !is_int($row['criticita'])
-                || $row['cod'] === ''
-                || $row['nome'] === ''
-                || strpos($row['cod'], "\0") !== false
-                || strpos($row['nome'], "\0") !== false
-                || preg_match('//u', $row['cod']) !== 1
-                || preg_match('//u', $row['nome']) !== 1
-                || preg_match_all('/./us', $row['cod'], $characters) > 20
-                || $row['criticita'] < 1
-                || $row['criticita'] > 5
-                || isset($seen['#' . $row['cod']])
-                || ($requireSorted && $previous !== null && strcmp($row['cod'], $previous) <= 0)
-            ) {
-                throw new ApiException(500, 'INVALID_SOURCE_DATA', 'La sorgente remota non rispetta il contratto.');
-            }
-            $seen['#' . $row['cod']] = true;
-            $previous = $row['cod'];
-            $result[] = [
-                'cod' => $row['cod'],
-                'nome' => $row['nome'],
-                'criticita' => $row['criticita'],
-            ];
-        }
-
-        return $result;
+        return new ApiException(400, 'INVALID_CURSOR', 'Il cursore non è valido.');
     }
 }

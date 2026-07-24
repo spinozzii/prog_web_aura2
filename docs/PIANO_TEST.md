@@ -54,7 +54,7 @@ Le stesse fixture JSON vengono usate nei tre linguaggi per verificare:
 - servlet con server HTTP simulati per gli errori;
 - servlet su Tomcat 9;
 - servlet su Tomcat 11;
-- migrazione verticale di `patologia`.
+- migrazione verticale completa delle otto entità in ordine di dipendenza.
 
 ### Test end-to-end
 
@@ -163,4 +163,3 @@ La release è candidata alla consegna soltanto se:
 - dataset massivo, conteggi, digest e vincoli coincidono;
 - prova pulita entro cinque minuti superata;
 - manuale e documento PDF sono verificati visivamente.
-

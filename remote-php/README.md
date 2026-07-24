@@ -23,7 +23,12 @@ front controller e permette lo stesso percorso con `php -S -t public`.
 `GET /health` non richiede database. Le API di migrazione sono:
 
 - `GET /api/v1/manifest`;
-- `GET /api/v1/export/patologia?limit=...&cursor=...`.
+- `GET /api/v1/export/{entity}?limit=...&cursor=...`.
+
+Le entità, i campi, i tipi e le chiavi sono caricati dalla whitelist
+versionata `shared/entity-schema.json`. L'ordine del manifest è:
+`cittadino`, `patologia`, `patologia_cronica`, `patologia_mortale`,
+`ospedale`, `ricovero`, `patologia_ricovero`, `progressivo_ricovero`.
 
 Richiedono `Authorization: Bearer ...`. La configurazione arriva soltanto
 dall'ambiente:
@@ -35,8 +40,10 @@ dall'ambiente:
 - `REMOTE_CURSOR_SECRET`;
 - `REMOTE_CURSOR_TTL_SECONDS`, facoltativo, predefinito a 900 secondi.
 
-La sorgente di produzione usa soltanto PDO e query `SELECT` preparate sulla
-tabella `patologia`. La sorgente fixture vive sotto `tests` e non viene
+La sorgente di produzione usa soltanto PDO e query `SELECT` preparate sulle
+tabelle in whitelist. La paginazione usa l'intera chiave primaria, inclusa la
+tupla delle chiavi composte; il cursore opaco contiene la tupla tipizzata ed è
+autenticato con HMAC. La sorgente fixture vive sotto `tests` e non viene
 caricata dal front controller.
 
 Non è richiesto Composer. I test isolati richiedono PHP CLI:

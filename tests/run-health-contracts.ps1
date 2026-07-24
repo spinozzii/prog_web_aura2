@@ -46,7 +46,9 @@ Invoke-OrSkip 'Java core isolated contracts' {
             (Join-Path $projectRoot 'tests/fixtures/patologia-empty.json') `
             (Join-Path $projectRoot 'tests/fixtures/patologia-line-separators.json')
         if ($LASTEXITCODE -ne 0) { throw 'Test Java di canonicalizzazione ha restituito un errore.' }
-        & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.MigrationOrchestratorTest
+        & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.MigrationOrchestratorTest `
+            (Join-Path $projectRoot 'shared/entity-schema.json') `
+            (Join-Path $projectRoot 'tests/fixtures/t03-dataset.json')
         if ($LASTEXITCODE -ne 0) { throw 'Test Java dell’orchestratore ha restituito un errore.' }
     } finally {
         Remove-Item -Recurse -Force -LiteralPath $outputDirectory -ErrorAction SilentlyContinue

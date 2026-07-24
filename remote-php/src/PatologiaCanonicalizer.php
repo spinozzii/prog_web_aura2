@@ -4,31 +4,35 @@ declare(strict_types=1);
 
 namespace DriveAura\Remote;
 
-/** Canonical JSON and SHA-256 for the constrained patologia contract. */
+require_once __DIR__ . '/ApiException.php';
+require_once __DIR__ . '/EntitySchema.php';
+require_once __DIR__ . '/SchemaRegistry.php';
+require_once __DIR__ . '/EntityCanonicalizer.php';
+
+/** Backward-compatible facade for the original executable patologia vectors. */
 final class PatologiaCanonicalizer
 {
+    private static ?EntitySchema $schema = null;
+
     /** @param list<array{cod: string, nome: string, criticita: int}> $rows */
     public static function canonicalize(array $rows): string
     {
-        if ($rows === []) {
-            return '';
-        }
-        usort($rows, static fn (array $left, array $right): int => strcmp($left['cod'], $right['cod']));
-        $lines = [];
-        foreach ($rows as $row) {
-            $lines[] = json_encode([
-                'cod' => $row['cod'],
-                'nome' => $row['nome'],
-                'criticita' => $row['criticita'],
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-                | JSON_UNESCAPED_LINE_TERMINATORS | JSON_THROW_ON_ERROR);
-        }
-        return implode("\n", $lines) . "\n";
+        return EntityCanonicalizer::canonicalize(self::schema(), $rows);
     }
 
     /** @param list<array{cod: string, nome: string, criticita: int}> $rows */
     public static function sha256(array $rows): string
     {
-        return hash('sha256', self::canonicalize($rows));
+        return EntityCanonicalizer::sha256(self::schema(), $rows);
+    }
+
+    private static function schema(): EntitySchema
+    {
+        if (self::$schema === null) {
+            self::$schema = SchemaRegistry::fromFile(
+                dirname(__DIR__, 2) . '/shared/entity-schema.json'
+            )->get('patologia');
+        }
+        return self::$schema;
     }
 }

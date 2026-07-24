@@ -1,0 +1,161 @@
+{
+  "apiVersion": "1.0",
+  "entityOrder": [
+    "cittadino",
+    "patologia",
+    "patologia_cronica",
+    "patologia_mortale",
+    "ospedale",
+    "ricovero",
+    "patologia_ricovero",
+    "progressivo_ricovero"
+  ],
+  "entities": {
+    "cittadino": {
+      "table": "cittadino",
+      "key": ["cssn"],
+      "previousEntity": null,
+      "fields": [
+        {"name": "cssn", "type": "string", "minLength": 1},
+        {"name": "nome", "type": "string", "minLength": 1},
+        {"name": "cognome", "type": "string", "minLength": 1},
+        {"name": "data_nascita", "type": "date"},
+        {"name": "luogo_nascita", "type": "string", "minLength": 1},
+        {"name": "indirizzo", "type": "string", "minLength": 1}
+      ],
+      "foreignKeys": [],
+      "unique": []
+    },
+    "patologia": {
+      "table": "patologia",
+      "key": ["cod"],
+      "previousEntity": "cittadino",
+      "fields": [
+        {"name": "cod", "type": "string", "minLength": 1, "maxLength": 20},
+        {"name": "nome", "type": "string", "minLength": 1},
+        {"name": "criticita", "type": "integer", "minimum": 1, "maximum": 5}
+      ],
+      "foreignKeys": [],
+      "unique": []
+    },
+    "patologia_cronica": {
+      "table": "patologia_cronica",
+      "key": ["cod_patologia"],
+      "previousEntity": "patologia",
+      "fields": [
+        {"name": "cod_patologia", "type": "string", "minLength": 1, "maxLength": 20}
+      ],
+      "foreignKeys": [
+        {
+          "fields": ["cod_patologia"],
+          "targetEntity": "patologia",
+          "targetFields": ["cod"]
+        }
+      ],
+      "unique": []
+    },
+    "patologia_mortale": {
+      "table": "patologia_mortale",
+      "key": ["cod_patologia"],
+      "previousEntity": "patologia_cronica",
+      "fields": [
+        {"name": "cod_patologia", "type": "string", "minLength": 1, "maxLength": 20}
+      ],
+      "foreignKeys": [
+        {
+          "fields": ["cod_patologia"],
+          "targetEntity": "patologia",
+          "targetFields": ["cod"]
+        }
+      ],
+      "unique": []
+    },
+    "ospedale": {
+      "table": "ospedale",
+      "key": ["codice"],
+      "previousEntity": "patologia_mortale",
+      "fields": [
+        {"name": "codice", "type": "string", "minLength": 1, "maxLength": 20},
+        {"name": "nome", "type": "string", "minLength": 1},
+        {"name": "citta", "type": "string", "minLength": 1},
+        {"name": "indirizzo", "type": "string", "minLength": 1},
+        {"name": "direttore_sanitario_cssn", "type": "string", "minLength": 1}
+      ],
+      "foreignKeys": [
+        {
+          "fields": ["direttore_sanitario_cssn"],
+          "targetEntity": "cittadino",
+          "targetFields": ["cssn"]
+        }
+      ],
+      "unique": [["direttore_sanitario_cssn"]]
+    },
+    "ricovero": {
+      "table": "ricovero",
+      "key": ["cod_ospedale", "cod"],
+      "previousEntity": "ospedale",
+      "fields": [
+        {"name": "cod_ospedale", "type": "string", "minLength": 1, "maxLength": 20},
+        {"name": "cod", "type": "integer", "minimum": 1},
+        {"name": "paziente_cssn", "type": "string", "minLength": 1},
+        {"name": "data_inizio", "type": "date"},
+        {"name": "durata", "type": "integer", "minimum": 1, "maximum": 3650},
+        {"name": "motivo", "type": "string", "minLength": 1, "maxLength": 500},
+        {"name": "costo", "type": "decimal2", "minimum": "0.00"}
+      ],
+      "foreignKeys": [
+        {
+          "fields": ["cod_ospedale"],
+          "targetEntity": "ospedale",
+          "targetFields": ["codice"]
+        },
+        {
+          "fields": ["paziente_cssn"],
+          "targetEntity": "cittadino",
+          "targetFields": ["cssn"]
+        }
+      ],
+      "unique": []
+    },
+    "patologia_ricovero": {
+      "table": "patologia_ricovero",
+      "key": ["cod_ospedale", "cod_ricovero", "cod_patologia"],
+      "previousEntity": "ricovero",
+      "fields": [
+        {"name": "cod_ospedale", "type": "string", "minLength": 1, "maxLength": 20},
+        {"name": "cod_ricovero", "type": "integer", "minimum": 1},
+        {"name": "cod_patologia", "type": "string", "minLength": 1, "maxLength": 20}
+      ],
+      "foreignKeys": [
+        {
+          "fields": ["cod_ospedale", "cod_ricovero"],
+          "targetEntity": "ricovero",
+          "targetFields": ["cod_ospedale", "cod"]
+        },
+        {
+          "fields": ["cod_patologia"],
+          "targetEntity": "patologia",
+          "targetFields": ["cod"]
+        }
+      ],
+      "unique": []
+    },
+    "progressivo_ricovero": {
+      "table": "progressivo_ricovero",
+      "key": ["cod_ospedale"],
+      "previousEntity": "patologia_ricovero",
+      "fields": [
+        {"name": "cod_ospedale", "type": "string", "minLength": 1, "maxLength": 20},
+        {"name": "prossimo_cod", "type": "integer", "minimum": 1}
+      ],
+      "foreignKeys": [
+        {
+          "fields": ["cod_ospedale"],
+          "targetEntity": "ospedale",
+          "targetFields": ["codice"]
+        }
+      ],
+      "unique": []
+    }
+  }
+}

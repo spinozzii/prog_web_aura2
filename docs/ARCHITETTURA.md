@@ -204,6 +204,18 @@ un nuovo identificativo.
 
 L'ordine è definito dal progetto, non accettato liberamente dal client.
 
+La verticale T03 usa `shared/entity-schema.json` come whitelist dichiarativa.
+Il servizio PHP associa ogni entità esclusivamente a tabella, campi e chiavi
+predefiniti; il core Java applica lo stesso ordine e lo stesso schema senza
+SQL; Django associa la definizione ai modelli PostgreSQL e mantiene i vincoli
+reali. La logica comune di pagina, cursore, canonicalizzazione, digest,
+trasferimento e finalizzazione resta unica per componente.
+
+Il `datasetId` globale deriva dai conteggi e dai digest di tutte le entità. I
+lotti e le finalizzazioni sono invece registrati per
+`(migration_id, entity)`, così un rilancio completo può riconoscere ogni
+passaggio già confermato senza confondere entità diverse.
+
 ## 6. Idempotenza
 
 Chiave logica di un lotto:
@@ -255,4 +267,3 @@ Non registrano:
 - interi payload;
 - stack trace nelle risposte;
 - dati personali oltre gli identificativi indispensabili al debug locale.
-

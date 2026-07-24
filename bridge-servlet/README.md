@@ -22,9 +22,10 @@ accetta `{}` oppure un oggetto con `apiVersion` e un `migrationId` UUID
 canonico. Il core Java 8:
 
 1. legge manifest ed export PHP;
-2. valida contratto, ordine, cursori, conteggi e digest;
-3. inoltra i lotti a Django;
-4. richiede e valida la finalizzazione.
+2. valida lo schema condiviso, l'ordine delle otto entità, cursori, chiavi
+   composte, conteggi, digest e `datasetId`;
+3. inoltra e finalizza i lotti Django un'entità alla volta;
+4. restituisce il riepilogo verificato per entità e aggregato.
 
 Configurazione d'ambiente obbligatoria:
 

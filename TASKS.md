@@ -6,22 +6,6 @@ Nessuna.
 
 ## BACKLOG
 
-- [ ] **T03 - Cittadino e sottoinsiemi Patologia**
-  - migrare `cittadino`, `patologia_cronica` e `patologia_mortale`;
-  - aggiungere validazioni, test di chiavi e casi negativi.
-
-- [ ] **T04 - Ospedale**
-  - migrare `ospedale` dopo `cittadino`;
-  - preservare FK e univocità del direttore sanitario.
-
-- [ ] **T05 - Ricovero**
-  - migrare `ricovero` dopo `cittadino` e `ospedale`;
-  - preservare chiave composta, domini e tipi numerici/data.
-
-- [ ] **T06 - Relazioni e progressivi**
-  - migrare `patologia_ricovero` e `progressivo_ricovero`;
-  - verificare chiavi composte, FK e `MAX(cod) + 1`.
-
 - [ ] **T07 - Orchestrazione completa e resilienza**
   - ordine automatico delle entità;
   - identificativo della migrazione, checkpoint, retry limitati e resume;
@@ -54,25 +38,25 @@ Nessuna.
 
 ## IN REVISIONE
 
-- [ ] **T02.2 - Prima migrazione verticale completa di Patologia**
-  - corretta la sequenza vuota nei tre linguaggi: zero byte, digest SHA-256
-    della sequenza vuota e fixture condivisa di regressione; verificati anche
-    i separatori Unicode U+2028/U+2029 con un vettore condiviso;
-  - implementati manifest ed export PHP/PDO con autenticazione d'ambiente,
-    whitelist, limite, keyset, cursore HMAC, sorgente fixture solo nei test ed
-    errori uniformi;
-  - implementati schema PostgreSQL, migrazioni Django, registro di run/lotti,
-    batch transazionali e idempotenti, conflitti, finalizzazione e stato;
-  - implementati core Java 8, trasporto HTTP limitato e due adattatori sottili
-    Tomcat 9/`javax` e Tomcat 11/`jakarta`;
-  - coperti successo multipagina, vuoto e casi avversi PHP, Java e Django;
-    runner rigoroso completo e `-AllowPartial` verificati;
-  - superato `mvn clean package`; prodotti entrambi i WAR;
-  - osservata la verticale reale su MariaDB, PHP, Tomcat 11, Django e
-    PostgreSQL, con tre pagine/lotti, digest finale e registro verificati;
-    rilancio idempotente osservato anche attraverso Tomcat 9;
-  - Progetto 1 e Altervista non coinvolti, nessuna credenziale inserita e
-    nessuna altra entità implementata; T03 non avviata.
+- [ ] **T03 - Estensione verticale a tutte le entità rimanenti**
+  - introdotti schema e fixture condivisi per tutte le otto entità, con campi,
+    tipi, domini, ordine, chiavi, FK, unicità, byte canonici e digest globali;
+  - generalizzati manifest, export PHP/PDO, keyset su tuple complete, cursori
+    HMAC e controllo del dataset senza duplicare la logica per entità;
+  - aggiunti modelli e migrazioni PostgreSQL, inclusa la FK composta reale,
+    registri per entità/lotto, transazioni, rollback, ordine e idempotenza;
+  - esteso il core Java 8 alle otto entità, mantenendo sottili e funzionanti
+    entrambi gli adattatori Tomcat 9/`javax` e Tomcat 11/`jakarta`;
+  - coperti ordine, PK composte, date, decimali, FK, unicità, digest/conteggi,
+    rollback, associazioni, progressivi, dataset globale e rilancio;
+  - runner rigoroso completo e 25 test Django superati; migrazioni pulite;
+    `mvn clean package` superato con produzione di entrambi i WAR;
+  - osservata la verticale reale MariaDB → PHP/PDO → Tomcat 11 → Django →
+    PostgreSQL su 22 righe/lotti; verificati conteggi, digest e vincoli;
+  - osservato il rilancio idempotente dello stesso `migrationId` via Tomcat 9,
+    senza duplicare run, lotti o dati;
+  - documentata la prova in `docs/VERIFICA_T03.md`; Progetto 1, Altervista,
+    dataset massivo, resilienza T07, installatore e PDF non sono stati avviati.
 
 ## COMPLETATE
 
@@ -114,6 +98,17 @@ Nessuna.
     `30b34233b63b016743a572fe35128e7fe85e3617`;
   - il caso limite della sequenza vuota è una correzione obbligatoria iniziale
     di T02.2.
+
+- [x] **T02.2 - Prima migrazione verticale completa di Patologia**
+  - realizzati manifest/export PHP, orchestratore Java, adattatori Tomcat
+    9/11 e importazione transazionale Django/PostgreSQL;
+  - verificati sicurezza, cursori, digest, rollback, conflitti e idempotenza;
+  - osservata la verticale reale MariaDB → PHP/PDO → Tomcat → Django →
+    PostgreSQL con tre pagine/lotti e stato `completed`;
+  - runner completo, 18 test Django, build dei due WAR e migrazioni superati;
+  - commit locale e GitHub verificati su
+    `fc90d808857caf156fa929a157faf745d8a0570f`;
+  - revisione Work conclusa senza correzioni bloccanti.
 
 ## BLOCCATE
 

@@ -124,8 +124,8 @@ class MigrationEndpointTests(TestCase):
         wrong_dataset = self.batch(0, self.rows[:1])
         wrong_dataset["datasetId"] = "f" * 64
         response = self.post_batch(wrong_dataset)
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"]["code"], "INVALID_CONTRACT")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"]["code"], "DEPENDENCY_NOT_COMPLETED")
         self.assertEqual(Patologia.objects.count(), 0)
 
     def test_finalize_incomplete_and_authentication_errors(self):

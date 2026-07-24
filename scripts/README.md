@@ -17,3 +17,9 @@ T02.2 aggiunge `verify-patologia-migration.ps1`: controlla i tre endpoint di
 salute e accetta la verticale soltanto dopo la finalizzazione verificata di
 `patologia`. Il comando usa URL espliciti e legge `BRIDGE_API_SECRET`
 dall'ambiente; non installa runtime e non contiene credenziali.
+
+T03 aggiunge `verify-full-migration.ps1`: verifica l'ordine e il risultato
+aggregato delle otto entità e accetta un `MigrationId` esplicito. L'opzione
+`-Repeat` prova il rilancio idempotente. Il precedente comando Patologia resta
+un alias compatibile e avvia ora la verticale completa, che include
+`patologia`.

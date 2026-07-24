@@ -5,18 +5,22 @@ declare(strict_types=1);
 require_once __DIR__ . '/../src/HealthResponse.php';
 require_once __DIR__ . '/../src/ApiException.php';
 require_once __DIR__ . '/../src/ApiResponse.php';
-require_once __DIR__ . '/../src/PatologiaCanonicalizer.php';
-require_once __DIR__ . '/../src/PatologiaSource.php';
-require_once __DIR__ . '/../src/PdoPatologiaSource.php';
+require_once __DIR__ . '/../src/EntitySchema.php';
+require_once __DIR__ . '/../src/SchemaRegistry.php';
+require_once __DIR__ . '/../src/EntityCanonicalizer.php';
+require_once __DIR__ . '/../src/EntitySource.php';
+require_once __DIR__ . '/../src/PdoEntitySource.php';
+require_once __DIR__ . '/../src/DatasetIdentity.php';
 require_once __DIR__ . '/../src/CursorCodec.php';
-require_once __DIR__ . '/../src/PatologiaApi.php';
+require_once __DIR__ . '/../src/MigrationApi.php';
 
 use DriveAura\Remote\ApiException;
 use DriveAura\Remote\ApiResponse;
 use DriveAura\Remote\CursorCodec;
 use DriveAura\Remote\HealthResponse;
-use DriveAura\Remote\PatologiaApi;
-use DriveAura\Remote\PdoPatologiaSource;
+use DriveAura\Remote\MigrationApi;
+use DriveAura\Remote\PdoEntitySource;
+use DriveAura\Remote\SchemaRegistry;
 
 ini_set('display_errors', '0');
 header('Content-Type: application/json; charset=utf-8');
@@ -30,7 +34,8 @@ if ($method === 'GET' && $path === '/health') {
     http_response_code(200);
     echo json_encode(
         HealthResponse::body(),
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            | JSON_UNESCAPED_LINE_TERMINATORS | JSON_THROW_ON_ERROR
     );
     exit;
 }
@@ -71,8 +76,10 @@ try {
     }
 
     $cursorCodec = new CursorCodec(is_string($cursorSecret) ? $cursorSecret : '', null, $cursorTtl);
-    $api = new PatologiaApi(
-        PdoPatologiaSource::fromEnvironment(),
+    $registry = SchemaRegistry::fromFile(dirname(__DIR__, 2) . '/shared/entity-schema.json');
+    $api = new MigrationApi(
+        PdoEntitySource::fromEnvironment(),
+        $registry,
         is_string($apiSecret) ? $apiSecret : '',
         $cursorCodec,
         static fn (): string => gmdate('Y-m-d\TH:i:s\Z')
@@ -95,5 +102,6 @@ if ($response->status === 405) {
 http_response_code($response->status);
 echo json_encode(
     $response->body,
-    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        | JSON_UNESCAPED_LINE_TERMINATORS | JSON_THROW_ON_ERROR
 );

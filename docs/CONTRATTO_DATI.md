@@ -252,6 +252,61 @@ il cursore come opaco. Il servizio Django registra run e lotto nella stessa
 transazione dei dati. Un lotto già registrato con stesso digest e conteggio è
 idempotente; uno con identità uguale e contenuto diverso è un conflitto.
 
+### 4.3 Estensione eseguibile T03
+
+`shared/entity-schema.json` è la whitelist condivisa per tutte le otto
+entità. Dichiara ordine, tabella sorgente, campi ordinati, tipi, limiti, chiavi,
+FK, vincoli univoci e predecessore. PHP, Java e Django caricano o rispecchiano
+questa definizione e rifiutano entità o campi estranei.
+
+`tests/fixtures/t03-dataset.json` contiene un dataset relazionale controllato,
+il byte stream canonico e il digest atteso di ogni entità. La
+canonicalizzazione conserva le regole della sezione 4.1, ma usa i campi
+nell'ordine dichiarato nello schema e ordina per l'intera chiave:
+
+- le stringhe restano stringhe JSON UTF-8 non vuote;
+- gli interi restano numeri JSON senza parte frazionaria;
+- le date civili sono stringhe `YYYY-MM-DD` valide nel calendario gregoriano;
+- i decimali sono stringhe non negative con esattamente due cifre dopo il
+  punto, per evitare conversioni binarie o perdita degli zeri finali;
+- le tuple di chiave composta sono confrontate elemento per elemento, usando
+  ordine binario UTF-8 per le stringhe e ordine numerico per gli interi.
+
+Il `datasetId` non coincide più con il digest di una singola entità. Si calcola
+in ordine di dipendenza applicando SHA-256 alla concatenazione UTF-8 delle
+seguenti righe JSON compatte, ciascuna terminata da `LF`:
+
+```text
+{"entity":"<nome>","rowCount":<conteggio>,"digest":"<digest-entita>"}\n
+```
+
+L'ordine vincolante è:
+
+1. `cittadino`;
+2. `patologia`;
+3. `patologia_cronica`;
+4. `patologia_mortale`;
+5. `ospedale`;
+6. `ricovero`;
+7. `patologia_ricovero`;
+8. `progressivo_ricovero`.
+
+Il manifest T03 espone tutte le otto voci in questo ordine. L'endpoint di ogni
+pagina è `GET /api/v1/export/<entita>` e mantiene la forma della sezione 4.2;
+il cursore HMAC include entità, `datasetId`, tupla completa dell'ultima chiave
+ed espirazione. Il confronto keyset sottostante usa la stessa tupla completa.
+
+Java trasferisce e finalizza un'entità alla volta nell'ordine del manifest.
+`batchSequence` riparte da zero per ogni entità; `datasetId` identifica il
+dataset globale, mentre `expectedDigest` e `expectedRowCount` identificano
+l'entità corrente. Django registra quindi l'identità del run insieme
+all'entità. Una finalizzazione riuscita verifica conteggio, digest, vincoli,
+predecessore completato e, per l'ultima entità:
+
+- almeno una riga `patologia_ricovero` per ogni `ricovero`;
+- un `progressivo_ricovero` per ogni ospedale;
+- `prossimo_cod = MAX(ricovero.cod dello stesso ospedale) + 1`.
+
 ## 5. Conteggi attesi del dataset corrente
 
 Conteggi già verificati nel Progetto 1:

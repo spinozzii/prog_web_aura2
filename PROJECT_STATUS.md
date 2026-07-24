@@ -5,9 +5,9 @@
 La scelta B è approvata: migrazione tramite servizio PHP remoto, servlet Java
 intermedia e servizio Django locale verso PostgreSQL.
 
-T00, T01, T01.1, T01.2 e T02.1 sono completate. Le precedenti T02.2-T02.4
-sono state accorpate nella verticale T02.2, ora in revisione. Non esiste
-alcuna attività autorizzata.
+T00, T01, T01.1, T01.2, T02.1 e T02.2 sono completate. Le precedenti
+T03-T06 sono accorpate in T03, ora in revisione dopo l'estensione della
+verticale a tutte le entità. Non esiste alcuna attività autorizzata.
 
 ## Fatti e decisioni verificati
 
@@ -86,17 +86,73 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
 - La procedura e l'esito osservato sono in `docs/VERIFICA_T02_2.md`;
   `scripts/verify-patologia-migration.ps1` è il comando ripetibile.
 
+## Esito T03
+
+- `shared/entity-schema.json` definisce le otto entità in ordine vincolante,
+  con campi, tipi, limiti, chiavi semplici/composte, FK e unicità.
+  `tests/fixtures/t03-dataset.json` contiene 22 righe relazionali, byte
+  canonici e digest attesi; il `datasetId` globale verificato è
+  `1994520ec6762723e7c1b32a9d8b40d8f4028f2c137a0aaa950298da680418a7`.
+- PHP usa una sola pipeline schema-driven per manifest, PDO, pagine keyset,
+  canonicalizzazione e digest. Le tuple complete entrano nel cursore HMAC v2;
+  query e placeholder sono preparati, l'ordine testuale è binario e il
+  dataset globale è ricontrollato prima e dopo ogni pagina.
+- Django definisce tutte le tabelle PostgreSQL, incluse le PK composte e una
+  FK composta reale da `patologia_ricovero` a `ricovero`. Registra run e lotti
+  per entità, applica ogni lotto in transazione e verifica ordine, FK, direttore
+  univoco, digest, associazioni, progressivi e `datasetId` globale.
+- Il core Java resta compatibile Java 8 e orchestra le otto entità senza
+  accesso ai database; il risultato finale espone ordine, conteggi, lotti e
+  digest per entità. Gli adattatori Tomcat 9 e Tomcat 11 restano separati e
+  gli endpoint `/health` sono invariati.
+- Il runner rigoroso completo finale è passato in `4,897 s` con Java 23/core
+  `--release 8`, PHP 8.3.32 e Python 3.12.10/Django 5.2.16. Sono passati 25
+  test Django; `manage.py check` non ha rilevato problemi e
+  `makemigrations --check --dry-run` non ha rilevato modifiche.
+- `mvn clean package` è passato in `5,395 s` e ha prodotto i WAR Tomcat 9
+  (`57.405` byte) e Tomcat 11 (`57.422` byte). Senza runtime il runner
+  rigoroso fallisce; `-AllowPartial` mostra gli skip e il riepilogo.
+- È stata osservata la verticale reale con MariaDB 12.3.2, `pdo_mysql`,
+  Tomcat 11.0.24, Django/psycopg e PostgreSQL 18.4: 22 righe e 22 lotti,
+  otto finalizzazioni e stato `completed` in `2,643 s`.
+- L'audit PostgreSQL ha confermato i conteggi `3/4/2/2/2/3/4/2`, nessun
+  duplicato delle PK composte, nessuna FK orfana, nessun direttore duplicato,
+  una patologia per ogni ricovero e progressivi uguali a `MAX(cod) + 1`.
+  Date, decimali a due cifre, accenti e caratteri da sottoporre a escape sono
+  rimasti integri.
+- Lo stesso `migrationId` è stato rilanciato attraverso Tomcat 9.0.120 in
+  `2,027 s`: PostgreSQL è rimasto a otto run, 22 lotti e 22 righe, quindi il
+  rilancio è stato realmente idempotente. Tutti i runtime temporanei sono
+  stati arrestati.
+- Casi avversi di ordine, tuple, cursore, dataset cambiato, data/decimale,
+  schema, FK, unicità, digest/conteggio, rollback, associazione e progressivo
+  sono coperti dai test. Procedura ed evidenze sono in
+  `docs/VERIFICA_T03.md`.
+
 ## Limiti residui
 
 - PHP, Django, MariaDB, PostgreSQL e Tomcat usati nel collaudo erano runtime
   portabili temporanei e non sono componenti della consegna.
-- La verticale reale ha usato un MariaDB temporaneo con tre righe controllate:
-  non è una distribuzione Altervista, non ha coinvolto Progetto 1 e non è la
-  futura prova sul dataset massivo.
+- La verticale completa ha usato una fixture controllata di 22 righe: non è
+  una distribuzione Altervista, non ha coinvolto Progetto 1 e non è la futura
+  prova sul dataset massivo.
 - Installatore finale, dipendenze offline, dataset massivo e documenti PDF
   restano attività di backlog e non sono stati iniziati.
 
+## Revisione Work T02.2
+
+Il 24 luglio 2026 Work ha verificato nuovamente:
+
+- commit locale, `origin/main` e ramo GitHub coincidenti su
+  `fc90d808857caf156fa929a157faf745d8a0570f`;
+- runner completo con contratti Java/PHP e 18 test Django;
+- `mvn clean package` e produzione dei WAR Tomcat 9 e Tomcat 11;
+- `makemigrations --check --dry-run` senza modifiche mancanti;
+- assenza di artefatti, cache e credenziali reali dai file tracciati.
+
+T02.2 è approvata senza correzioni bloccanti.
+
 ## Prossimo passo
 
-Revisionare T02.2. Non iniziare T03 o altre attività senza una nuova
+Revisionare T03. Non iniziare T07, T08 o altre attività senza una nuova
 autorizzazione esplicita.

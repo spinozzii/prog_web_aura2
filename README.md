@@ -24,10 +24,11 @@ consegnato.
 
 ## Stato
 
-T02.2 ha realizzato la prima verticale completa di `patologia`: manifest ed
-export PHP/PDO, orchestrazione servlet, importazione transazionale Django e
-persistenza PostgreSQL. L'attività è in revisione; lo stato vincolante resta
-in `TASKS.md`.
+T03 ha esteso la verticale già funzionante a tutte le otto entità del
+contratto. Manifest ed export PHP/PDO, orchestrazione servlet, importazione
+transazionale Django e persistenza PostgreSQL sono configurati dallo schema
+condiviso. La prova reale con fixture relazionale ha attraversato entrambi i
+WAR; l'attività è in revisione e lo stato vincolante resta in `TASKS.md`.
 
 ## Origine dei dati
 
@@ -60,6 +61,7 @@ Altervista avverrà solo in una fase esplicitamente autorizzata.
 - `docs/CHECKLIST_PROFESSORE.md`: criteri di valutazione e penalità;
 - `docs/PIANO_TEST.md`: strategia di verifica;
 - `docs/VERIFICA_T02_2.md`: procedura ed esito osservato della prima verticale;
+- `docs/VERIFICA_T03.md`: procedura ed esito della verticale completa;
 - `docs/RISCHI.md`: rischi e contromisure.
 
 ## Avvio del lavoro
