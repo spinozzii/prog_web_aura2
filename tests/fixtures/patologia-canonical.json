@@ -1,0 +1,18 @@
+{
+  "entity": "patologia",
+  "fields": ["cod", "nome", "criticita"],
+  "rows": [
+    {
+      "cod": "A-001",
+      "nome": "Àlfa \"virgole\" / percorso \\ radice\nnuova riga",
+      "criticita": 1
+    },
+    {
+      "cod": "Z-999",
+      "nome": "Zèta & <tag> / fine",
+      "criticita": 5
+    }
+  ],
+  "expectedCanonical": "{\"cod\":\"A-001\",\"nome\":\"Àlfa \\\"virgole\\\" / percorso \\\\ radice\\nnuova riga\",\"criticita\":1}\n{\"cod\":\"Z-999\",\"nome\":\"Zèta & <tag> / fine\",\"criticita\":5}\n",
+  "expectedSha256": "53f27d16f82cdf36bbdb1bd28b61bc6cf7f7057d5cc135a66c2bd9105cc27b83"
+}

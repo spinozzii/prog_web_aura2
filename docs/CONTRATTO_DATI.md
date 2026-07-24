@@ -139,6 +139,32 @@ Regole iniziali:
 Prima della migrazione massiva devono esistere fixture con digest atteso,
 verificate in PHP, Java e Python.
 
+### 4.1 Contratto eseguibile iniziale: `patologia`
+
+La fixture condivisa `tests/fixtures/patologia-canonical.json` definisce il
+vettore iniziale eseguibile per `patologia`.
+
+Per ogni record, dopo l'ordinamento crescente per `cod`, il byte stream è una
+riga UTF-8 senza BOM nel formato esatto:
+
+```text
+{"cod":"<cod>","nome":"<nome>","criticita":<criticita>}\n
+```
+
+Regole vincolanti:
+
+1. le chiavi appaiono esattamente nell'ordine `cod`, `nome`, `criticita`;
+2. JSON compatto: nessuno spazio aggiunto;
+3. i caratteri non ASCII restano caratteri UTF-8, non escape `\u`;
+4. virgolette inverse, barra rovesciata e caratteri di controllo usano gli
+   escape JSON standard; `/` non viene trasformato in `\/`;
+5. ogni record termina con `LF` (`0A`), incluso l'ultimo;
+6. il digest è SHA-256 minuscolo del byte stream completo.
+
+Il vettore contiene accenti, virgolette, barra rovesciata, newline, slash e
+criticità 1 e 5. Il digest atteso è
+`53f27d16f82cdf36bbdb1bd28b61bc6cf7f7057d5cc135a66c2bd9105cc27b83`.
+
 ## 5. Conteggi attesi del dataset corrente
 
 Conteggi già verificati nel Progetto 1:

@@ -6,12 +6,20 @@ Nessuna.
 
 ## BACKLOG
 
-- [ ] **T02 - Prima sezione verticale: Patologia**
-  - manifest remoto;
-  - export paginato e deterministico;
-  - inoltro tramite servlet;
-  - import transazionale e ripetibile in PostgreSQL;
-  - verifica conteggio e digest su una fixture.
+- [ ] **T02.2 - PHP remoto: manifest ed export di Patologia**
+  - configurazione PDO e autenticazione tramite ambiente;
+  - manifest e paginazione keyset con cursore opaco;
+  - query preparate, whitelist e test HTTP/contratto.
+
+- [ ] **T02.3 - Django/PostgreSQL: importazione di Patologia**
+  - schema PostgreSQL e registro dei lotti;
+  - validazione, transazione, idempotenza e conflitto digest;
+  - finalizzazione e test con PostgreSQL reale.
+
+- [ ] **T02.4 - Servlet e prova verticale di Patologia**
+  - lettura manifest ed export PHP;
+  - inoltro dei lotti e finalizzazione Django;
+  - adattatori Tomcat 9 e 11 e verifica end-to-end del percorso completo.
 
 - [ ] **T03 - Cittadino e sottoinsiemi Patologia**
   - migrare `cittadino`, `patologia_cronica` e `patologia_mortale`;
@@ -61,13 +69,20 @@ Nessuna.
 
 ## IN REVISIONE
 
-- [ ] **T01.2 - Inizializzazione Git e collegamento GitHub**
-  - verificato che `https://github.com/spinozzii/prog_web_aura2.git` fosse vuoto;
-  - inizializzato Git sul ramo `main` solo in questa cartella e configurato `origin`;
-  - verificati i file ammessi e l'esclusione di `target`, cache, configurazioni locali e credenziali;
-  - creato e pubblicato il checkpoint iniziale senza force push;
-  - verificati `origin`, tracking di `main`, coincidenza dei commit e working tree pulito;
-  - T02 non avviata.
+- [ ] **T02.1 - Contratto eseguibile e digest condiviso di Patologia**
+  - documentata la rappresentazione esatta di `patologia`: ordine `cod`,
+    `nome`, `criticita`, JSON compatto, UTF-8, slash non trasformati e LF
+    finale per ogni record;
+  - aggiunta fixture condivisa con accenti, escape JSON, criticità 1 e 5,
+    byte canonici attesi e digest SHA-256;
+  - implementate funzioni senza dipendenze in PHP, Java core Java 8 e Python;
+  - i test dei tre linguaggi consumano la fixture, riordinano i record e
+    verificano byte canonici e digest identici;
+  - runner rigoroso e `-AllowPartial` verificati, runner completo superato con
+    i runtime temporanei; `mvn clean package` superato con produzione dei due WAR;
+  - endpoint `/health` invariati; nessun manifest, export, orchestrazione,
+    import o accesso al database implementato;
+  - T02.2 non avviata.
 
 ## COMPLETATE
 
@@ -90,6 +105,13 @@ Nessuna.
   - verificati runner rigoroso, modalità `-AllowPartial` e runner completo;
   - superato `mvn clean package` con produzione dei due WAR;
   - T02 confermata non avviata.
+
+- [x] **T01.2 - Inizializzazione Git e collegamento GitHub**
+  - repository remoto verificato inizialmente vuoto;
+  - inizializzato `main` soltanto in questa cartella e configurato `origin`;
+  - pubblicato il checkpoint iniziale senza force push;
+  - verificati esclusioni, tracking, working tree pulito e coincidenza fra commit locale e remoto `b400d5229a924b46f9c4debbf079d9d8417aa38f`;
+  - revisione Work conclusa il 24 luglio 2026.
 
 ## BLOCCATE
 

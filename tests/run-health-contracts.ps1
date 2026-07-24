@@ -34,10 +34,14 @@ Invoke-OrSkip 'Java core health contract' {
     try {
         & $javac.Source --release 8 -d $outputDirectory `
             (Join-Path $projectRoot 'bridge-servlet/core/src/main/java/it/unibg/driveaura/bridge/core/HealthResponse.java') `
-            (Join-Path $projectRoot 'bridge-servlet/core/src/test/java/it/unibg/driveaura/bridge/core/HealthResponseTest.java')
+            (Join-Path $projectRoot 'bridge-servlet/core/src/test/java/it/unibg/driveaura/bridge/core/HealthResponseTest.java') `
+            (Join-Path $projectRoot 'bridge-servlet/core/src/main/java/it/unibg/driveaura/bridge/core/PatologiaCanonicalizer.java') `
+            (Join-Path $projectRoot 'bridge-servlet/core/src/test/java/it/unibg/driveaura/bridge/core/PatologiaCanonicalizerTest.java')
         if ($LASTEXITCODE -ne 0) { throw 'javac ha restituito un errore.' }
         & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.HealthResponseTest
         if ($LASTEXITCODE -ne 0) { throw 'java ha restituito un errore.' }
+        & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.PatologiaCanonicalizerTest (Join-Path $projectRoot 'tests/fixtures/patologia-canonical.json')
+        if ($LASTEXITCODE -ne 0) { throw 'Test Java di canonicalizzazione ha restituito un errore.' }
     } finally {
         Remove-Item -Recurse -Force -LiteralPath $outputDirectory -ErrorAction SilentlyContinue
     }
@@ -47,6 +51,8 @@ Invoke-OrSkip 'PHP CLI and HTTP health contract' {
     $php = Get-Command php -ErrorAction Stop
     & $php.Source (Join-Path $projectRoot 'remote-php/tests/HealthResponseTest.php')
     if ($LASTEXITCODE -ne 0) { throw 'Il test unitario PHP ha restituito un errore.' }
+    & $php.Source (Join-Path $projectRoot 'remote-php/tests/PatologiaCanonicalizerTest.php')
+    if ($LASTEXITCODE -ne 0) { throw 'Il test PHP di canonicalizzazione ha restituito un errore.' }
 
     $port = Get-FreePort
     $documentRoot = Join-Path $projectRoot 'remote-php/public'
