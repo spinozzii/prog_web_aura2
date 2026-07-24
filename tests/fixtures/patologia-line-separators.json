@@ -1,0 +1,13 @@
+{
+  "entity": "patologia",
+  "fields": ["cod", "nome", "criticita"],
+  "rows": [
+    {
+      "cod": "U-2028",
+      "nome": "prima\u2028seconda\u2029fine",
+      "criticita": 5
+    }
+  ],
+  "expectedCanonical": "{\"cod\":\"U-2028\",\"nome\":\"prima\u2028seconda\u2029fine\",\"criticita\":5}\n",
+  "expectedSha256": "16d7f1b8999f6fe8c5a38fd72b08b01c5b7ac26fa0c8d769daeee3f592d25ec9"
+}

@@ -16,14 +16,25 @@ public final class PatologiaCanonicalizerTest {
     private static final Pattern DIGEST = Pattern.compile("\\\"expectedSha256\\\"\\s*:\\s*\\\"([0-9a-f]{64})\\\"");
 
     public static void main(String[] args) throws Exception {
-        String fixture = new String(Files.readAllBytes(Paths.get(args[0])), StandardCharsets.UTF_8);
+        for (String fixturePath : args) {
+            verifyFixture(fixturePath);
+        }
+        if (PatologiaCanonicalizer.compareCodes("\ue000", "\ud800\udc00") >= 0) {
+            throw new AssertionError("Ordine Unicode Java non compatibile con UTF-8/Python.");
+        }
+        System.out.println("Canonicalizzazione Patologia Java valida.");
+    }
+
+    private static void verifyFixture(String fixturePath) throws Exception {
+        String fixture = new String(Files.readAllBytes(Paths.get(fixturePath)), StandardCharsets.UTF_8);
         List<PatologiaCanonicalizer.Patologia> rows = new ArrayList<PatologiaCanonicalizer.Patologia>();
         Matcher rowMatcher = ROW.matcher(fixture);
         while (rowMatcher.find()) {
             rows.add(new PatologiaCanonicalizer.Patologia(
                     unescape(rowMatcher.group(1)), unescape(rowMatcher.group(2)), Integer.parseInt(rowMatcher.group(3))));
         }
-        if (rows.size() != 2) {
+        boolean emptyFixture = fixturePath.endsWith("patologia-empty.json");
+        if ((emptyFixture && !rows.isEmpty()) || (!emptyFixture && rows.isEmpty())) {
             throw new AssertionError("Fixture Patologia non valida.");
         }
         Collections.reverse(rows);
@@ -36,7 +47,6 @@ public final class PatologiaCanonicalizerTest {
         if (!PatologiaCanonicalizer.sha256(rows).equals(expectedDigest)) {
             throw new AssertionError("Digest Java non valido.");
         }
-        System.out.println("Canonicalizzazione Patologia Java valida.");
     }
 
     private static String required(Pattern pattern, String source) {

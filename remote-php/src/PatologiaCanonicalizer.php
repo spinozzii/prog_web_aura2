@@ -10,6 +10,9 @@ final class PatologiaCanonicalizer
     /** @param list<array{cod: string, nome: string, criticita: int}> $rows */
     public static function canonicalize(array $rows): string
     {
+        if ($rows === []) {
+            return '';
+        }
         usort($rows, static fn (array $left, array $right): int => strcmp($left['cod'], $right['cod']));
         $lines = [];
         foreach ($rows as $row) {
@@ -17,7 +20,8 @@ final class PatologiaCanonicalizer
                 'cod' => $row['cod'],
                 'nome' => $row['nome'],
                 'criticita' => $row['criticita'],
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                | JSON_UNESCAPED_LINE_TERMINATORS | JSON_THROW_ON_ERROR);
         }
         return implode("\n", $lines) . "\n";
     }

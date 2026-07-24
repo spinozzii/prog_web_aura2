@@ -24,9 +24,10 @@ consegnato.
 
 ## Stato
 
-T01 ha creato gli scheletri avviabili e il contratto `GET /health` per i tre
-componenti. T01.1 è l'unica attività autorizzata e completa le correzioni di
-revisione; lo stato vincolante è in `TASKS.md`.
+T02.2 ha realizzato la prima verticale completa di `patologia`: manifest ed
+export PHP/PDO, orchestrazione servlet, importazione transazionale Django e
+persistenza PostgreSQL. L'attività è in revisione; lo stato vincolante resta
+in `TASKS.md`.
 
 ## Origine dei dati
 
@@ -58,6 +59,7 @@ Altervista avverrà solo in una fase esplicitamente autorizzata.
 - `docs/DECISIONI.md`: decisioni durevoli;
 - `docs/CHECKLIST_PROFESSORE.md`: criteri di valutazione e penalità;
 - `docs/PIANO_TEST.md`: strategia di verifica;
+- `docs/VERIFICA_T02_2.md`: procedura ed esito osservato della prima verticale;
 - `docs/RISCHI.md`: rischi e contromisure.
 
 ## Avvio del lavoro

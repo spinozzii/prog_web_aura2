@@ -6,21 +6,6 @@ Nessuna.
 
 ## BACKLOG
 
-- [ ] **T02.2 - PHP remoto: manifest ed export di Patologia**
-  - configurazione PDO e autenticazione tramite ambiente;
-  - manifest e paginazione keyset con cursore opaco;
-  - query preparate, whitelist e test HTTP/contratto.
-
-- [ ] **T02.3 - Django/PostgreSQL: importazione di Patologia**
-  - schema PostgreSQL e registro dei lotti;
-  - validazione, transazione, idempotenza e conflitto digest;
-  - finalizzazione e test con PostgreSQL reale.
-
-- [ ] **T02.4 - Servlet e prova verticale di Patologia**
-  - lettura manifest ed export PHP;
-  - inoltro dei lotti e finalizzazione Django;
-  - adattatori Tomcat 9 e 11 e verifica end-to-end del percorso completo.
-
 - [ ] **T03 - Cittadino e sottoinsiemi Patologia**
   - migrare `cittadino`, `patologia_cronica` e `patologia_mortale`;
   - aggiungere validazioni, test di chiavi e casi negativi.
@@ -69,20 +54,25 @@ Nessuna.
 
 ## IN REVISIONE
 
-- [ ] **T02.1 - Contratto eseguibile e digest condiviso di Patologia**
-  - documentata la rappresentazione esatta di `patologia`: ordine `cod`,
-    `nome`, `criticita`, JSON compatto, UTF-8, slash non trasformati e LF
-    finale per ogni record;
-  - aggiunta fixture condivisa con accenti, escape JSON, criticità 1 e 5,
-    byte canonici attesi e digest SHA-256;
-  - implementate funzioni senza dipendenze in PHP, Java core Java 8 e Python;
-  - i test dei tre linguaggi consumano la fixture, riordinano i record e
-    verificano byte canonici e digest identici;
-  - runner rigoroso e `-AllowPartial` verificati, runner completo superato con
-    i runtime temporanei; `mvn clean package` superato con produzione dei due WAR;
-  - endpoint `/health` invariati; nessun manifest, export, orchestrazione,
-    import o accesso al database implementato;
-  - T02.2 non avviata.
+- [ ] **T02.2 - Prima migrazione verticale completa di Patologia**
+  - corretta la sequenza vuota nei tre linguaggi: zero byte, digest SHA-256
+    della sequenza vuota e fixture condivisa di regressione; verificati anche
+    i separatori Unicode U+2028/U+2029 con un vettore condiviso;
+  - implementati manifest ed export PHP/PDO con autenticazione d'ambiente,
+    whitelist, limite, keyset, cursore HMAC, sorgente fixture solo nei test ed
+    errori uniformi;
+  - implementati schema PostgreSQL, migrazioni Django, registro di run/lotti,
+    batch transazionali e idempotenti, conflitti, finalizzazione e stato;
+  - implementati core Java 8, trasporto HTTP limitato e due adattatori sottili
+    Tomcat 9/`javax` e Tomcat 11/`jakarta`;
+  - coperti successo multipagina, vuoto e casi avversi PHP, Java e Django;
+    runner rigoroso completo e `-AllowPartial` verificati;
+  - superato `mvn clean package`; prodotti entrambi i WAR;
+  - osservata la verticale reale su MariaDB, PHP, Tomcat 11, Django e
+    PostgreSQL, con tre pagine/lotti, digest finale e registro verificati;
+    rilancio idempotente osservato anche attraverso Tomcat 9;
+  - Progetto 1 e Altervista non coinvolti, nessuna credenziale inserita e
+    nessuna altra entità implementata; T03 non avviata.
 
 ## COMPLETATE
 
@@ -112,6 +102,18 @@ Nessuna.
   - pubblicato il checkpoint iniziale senza force push;
   - verificati esclusioni, tracking, working tree pulito e coincidenza fra commit locale e remoto `b400d5229a924b46f9c4debbf079d9d8417aa38f`;
   - revisione Work conclusa il 24 luglio 2026.
+
+- [x] **T02.1 - Contratto eseguibile e digest condiviso di Patologia**
+  - fissata la rappresentazione canonica e aggiunta la fixture UTF-8 condivisa;
+  - implementate e verificate canonicalizzazione e SHA-256 in PHP, Java 8 e
+    Python/Django;
+  - digest condiviso verificato:
+    `53f27d16f82cdf36bbdb1bd28b61bc6cf7f7057d5cc135a66c2bd9105cc27b83`;
+  - runner completo e build dei due WAR superati;
+  - commit locale e GitHub verificati su
+    `30b34233b63b016743a572fe35128e7fe85e3617`;
+  - il caso limite della sequenza vuota è una correzione obbligatoria iniziale
+    di T02.2.
 
 ## BLOCCATE
 

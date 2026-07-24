@@ -18,7 +18,7 @@ public final class PatologiaCanonicalizer {
         Collections.sort(sorted, new Comparator<Patologia>() {
             @Override
             public int compare(Patologia left, Patologia right) {
-                return left.cod.compareTo(right.cod);
+                return compareCodes(left.cod, right.cod);
             }
         });
         StringBuilder output = new StringBuilder();
@@ -29,6 +29,24 @@ public final class PatologiaCanonicalizer {
                     .append("}\n");
         }
         return output.toString();
+    }
+
+    /** Unicode code-point order, matching valid UTF-8 binary and Python order. */
+    static int compareCodes(String left, String right) {
+        int leftIndex = 0;
+        int rightIndex = 0;
+        while (leftIndex < left.length() && rightIndex < right.length()) {
+            int leftCodePoint = left.codePointAt(leftIndex);
+            int rightCodePoint = right.codePointAt(rightIndex);
+            if (leftCodePoint != rightCodePoint) {
+                return leftCodePoint < rightCodePoint ? -1 : 1;
+            }
+            leftIndex += Character.charCount(leftCodePoint);
+            rightIndex += Character.charCount(rightCodePoint);
+        }
+        if (leftIndex < left.length()) return 1;
+        if (rightIndex < right.length()) return -1;
+        return 0;
     }
 
     public static String sha256(List<Patologia> rows) {

@@ -26,33 +26,41 @@ function Get-FreePort {
     return $port
 }
 
-Invoke-OrSkip 'Java core health contract' {
+Invoke-OrSkip 'Java core isolated contracts' {
     $javac = Get-Command javac -ErrorAction Stop
     $java = Get-Command java -ErrorAction Stop
     $outputDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("drive-aura-health-contracts-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $outputDirectory | Out-Null
     try {
-        & $javac.Source --release 8 -d $outputDirectory `
-            (Join-Path $projectRoot 'bridge-servlet/core/src/main/java/it/unibg/driveaura/bridge/core/HealthResponse.java') `
-            (Join-Path $projectRoot 'bridge-servlet/core/src/test/java/it/unibg/driveaura/bridge/core/HealthResponseTest.java') `
-            (Join-Path $projectRoot 'bridge-servlet/core/src/main/java/it/unibg/driveaura/bridge/core/PatologiaCanonicalizer.java') `
-            (Join-Path $projectRoot 'bridge-servlet/core/src/test/java/it/unibg/driveaura/bridge/core/PatologiaCanonicalizerTest.java')
+        $javaSources = @(
+            Get-ChildItem -Recurse -LiteralPath (Join-Path $projectRoot 'bridge-servlet/core/src/main/java') -Filter '*.java'
+            Get-ChildItem -Recurse -LiteralPath (Join-Path $projectRoot 'bridge-servlet/core/src/test/java') -Filter '*.java'
+        ) | ForEach-Object { $_.FullName }
+        if ($javaSources.Count -eq 0) { throw 'Sorgenti o test Java mancanti.' }
+        & $javac.Source --release 8 -d $outputDirectory $javaSources
         if ($LASTEXITCODE -ne 0) { throw 'javac ha restituito un errore.' }
         & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.HealthResponseTest
         if ($LASTEXITCODE -ne 0) { throw 'java ha restituito un errore.' }
-        & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.PatologiaCanonicalizerTest (Join-Path $projectRoot 'tests/fixtures/patologia-canonical.json')
+        & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.PatologiaCanonicalizerTest `
+            (Join-Path $projectRoot 'tests/fixtures/patologia-canonical.json') `
+            (Join-Path $projectRoot 'tests/fixtures/patologia-empty.json') `
+            (Join-Path $projectRoot 'tests/fixtures/patologia-line-separators.json')
         if ($LASTEXITCODE -ne 0) { throw 'Test Java di canonicalizzazione ha restituito un errore.' }
+        & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.MigrationOrchestratorTest
+        if ($LASTEXITCODE -ne 0) { throw 'Test Java dell’orchestratore ha restituito un errore.' }
     } finally {
         Remove-Item -Recurse -Force -LiteralPath $outputDirectory -ErrorAction SilentlyContinue
     }
 }
 
-Invoke-OrSkip 'PHP CLI and HTTP health contract' {
+Invoke-OrSkip 'PHP isolated and HTTP contracts' {
     $php = Get-Command php -ErrorAction Stop
     & $php.Source (Join-Path $projectRoot 'remote-php/tests/HealthResponseTest.php')
     if ($LASTEXITCODE -ne 0) { throw 'Il test unitario PHP ha restituito un errore.' }
     & $php.Source (Join-Path $projectRoot 'remote-php/tests/PatologiaCanonicalizerTest.php')
     if ($LASTEXITCODE -ne 0) { throw 'Il test PHP di canonicalizzazione ha restituito un errore.' }
+    & $php.Source (Join-Path $projectRoot 'remote-php/tests/PatologiaApiTest.php')
+    if ($LASTEXITCODE -ne 0) { throw 'Il test PHP dell’API Patologia ha restituito un errore.' }
 
     $port = Get-FreePort
     $documentRoot = Join-Path $projectRoot 'remote-php/public'
@@ -78,15 +86,24 @@ Invoke-OrSkip 'PHP CLI and HTTP health contract' {
     }
 }
 
-Invoke-OrSkip 'Django health contract' {
+Invoke-OrSkip 'Django isolated contracts' {
     $python = Get-Command python -ErrorAction Stop
     $version = & $python.Source -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
     if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne '3.12') { throw "Python 3.12 richiesto; rilevato $version." }
+    $previousSqliteSetting = $env:DJANGO_TEST_SQLITE
+    $env:DJANGO_TEST_SQLITE = '1'
     Push-Location (Join-Path $projectRoot 'local-django')
     try {
         & $python.Source manage.py test health_service
         if ($LASTEXITCODE -ne 0) { throw 'Il test Django ha restituito un errore.' }
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+        if ($null -eq $previousSqliteSetting) {
+            Remove-Item Env:DJANGO_TEST_SQLITE -ErrorAction SilentlyContinue
+        } else {
+            $env:DJANGO_TEST_SQLITE = $previousSqliteSetting
+        }
+    }
 }
 
 if ($skipped.Count -gt 0) {
@@ -94,4 +111,4 @@ if ($skipped.Count -gt 0) {
     exit 0
 }
 
-Write-Output 'PASS: tutti i contratti di salute sono stati eseguiti.'
+Write-Output 'PASS: tutti i contratti isolati sono stati eseguiti.'
