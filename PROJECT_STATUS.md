@@ -29,9 +29,9 @@ attività autorizzata; T02 resta nel backlog.
   Python, configurazioni locali e file di log/temporanei.
 - È stato usato soltanto il nome e l'email Git già disponibili; nessuna
   configurazione Git globale, identità o credenziale è stata creata o modificata.
-- Il checkpoint iniziale contiene sorgenti, test e documentazione del progetto.
-- Dopo la pubblicazione saranno registrati hash locale/remoto, tracking e stato
-  pulito nel presente file.
+- Il checkpoint iniziale `c4ceed79097ecf245f807c381ad27274e3092f00` contiene
+  sorgenti, test e documentazione del progetto.
+- `main` è pubblicato su `origin/main` senza force push e segue il remoto.
 
 ## Limiti residui
 
