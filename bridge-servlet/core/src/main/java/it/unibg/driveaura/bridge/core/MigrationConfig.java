@@ -13,16 +13,35 @@ public final class MigrationConfig {
     public final int batchSize;
     public final int connectTimeoutMs;
     public final int readTimeoutMs;
+    public final int maxRetries;
+    public final int retryDelayMs;
 
     public MigrationConfig(String remoteBaseUrl, String localBaseUrl, String remoteSecret, String localSecret,
                            String bridgeSecret, int batchSize, int connectTimeoutMs, int readTimeoutMs) {
+        this(remoteBaseUrl, localBaseUrl, remoteSecret, localSecret, bridgeSecret,
+                batchSize, connectTimeoutMs, readTimeoutMs, 0, 0);
+    }
+
+    public MigrationConfig(
+            String remoteBaseUrl,
+            String localBaseUrl,
+            String remoteSecret,
+            String localSecret,
+            String bridgeSecret,
+            int batchSize,
+            int connectTimeoutMs,
+            int readTimeoutMs,
+            int maxRetries,
+            int retryDelayMs) {
         if (!httpUrl(remoteBaseUrl) || !httpUrl(localBaseUrl)
                 || empty(remoteSecret) || empty(localSecret) || empty(bridgeSecret)) {
             throw new MigrationException("BRIDGE_NOT_CONFIGURED", 503, "La servlet non e configurata.");
         }
         if (batchSize < 1 || batchSize > 100
                 || connectTimeoutMs < 1 || connectTimeoutMs > 120000
-                || readTimeoutMs < 1 || readTimeoutMs > 120000) {
+                || readTimeoutMs < 1 || readTimeoutMs > 120000
+                || maxRetries < 0 || maxRetries > 5
+                || retryDelayMs < 0 || retryDelayMs > 10000) {
             throw new MigrationException(
                     "BRIDGE_NOT_CONFIGURED", 503, "I limiti della servlet non sono validi.");
         }
@@ -34,6 +53,8 @@ public final class MigrationConfig {
         this.batchSize = batchSize;
         this.connectTimeoutMs = connectTimeoutMs;
         this.readTimeoutMs = readTimeoutMs;
+        this.maxRetries = maxRetries;
+        this.retryDelayMs = retryDelayMs;
     }
 
     public static MigrationConfig fromEnvironment() {
@@ -45,7 +66,9 @@ public final class MigrationConfig {
                 required("BRIDGE_API_SECRET"),
                 integer("BRIDGE_BATCH_SIZE", 50),
                 integer("BRIDGE_CONNECT_TIMEOUT_MS", 3000),
-                integer("BRIDGE_READ_TIMEOUT_MS", 10000));
+                integer("BRIDGE_READ_TIMEOUT_MS", 10000),
+                integer("BRIDGE_MAX_RETRIES", 2),
+                integer("BRIDGE_RETRY_DELAY_MS", 100));
     }
 
     private static String required(String name) {

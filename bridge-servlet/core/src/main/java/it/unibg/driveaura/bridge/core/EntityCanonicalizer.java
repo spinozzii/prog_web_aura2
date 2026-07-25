@@ -56,18 +56,49 @@ public final class EntityCanonicalizer {
     public static int compare(EntitySchema schema, Row left, Row right) {
         requireSchema(schema, left);
         requireSchema(schema, right);
-        for (EntitySchema.Field field : schema.keyFields) {
-            Object leftValue = left.values.get(field.name);
-            Object rightValue = right.values.get(field.name);
-            int result;
-            if ("integer".equals(field.type)) {
-                result = Long.compare(((Long) leftValue).longValue(), ((Long) rightValue).longValue());
-            } else {
-                result = compareUnicode((String) leftValue, (String) rightValue);
-            }
+        for (int index = 0; index < schema.keyFields.size(); index++) {
+            EntitySchema.Field field = schema.keyFields.get(index);
+            int result = compareValue(
+                    field, left.values.get(field.name), right.values.get(field.name));
             if (result != 0) return result;
         }
         return 0;
+    }
+
+    public static Key validateKey(EntitySchema schema, Object raw) {
+        if (!(raw instanceof List)) throw new IllegalArgumentException("Tupla chiave richiesta.");
+        List<?> values = (List<?>) raw;
+        if (values.size() != schema.keyFields.size()) {
+            throw new IllegalArgumentException("Tupla chiave non valida.");
+        }
+        ArrayList<Object> normalized = new ArrayList<Object>(values.size());
+        for (int index = 0; index < values.size(); index++) {
+            Object value = values.get(index);
+            validateValue(schema.keyFields.get(index), value);
+            normalized.add(value);
+        }
+        return new Key(schema, normalized);
+    }
+
+    public static int compare(EntitySchema schema, Key left, Row right) {
+        if (left.schema != schema) throw new IllegalArgumentException("Schema chiave non coerente.");
+        requireSchema(schema, right);
+        for (int index = 0; index < schema.keyFields.size(); index++) {
+            EntitySchema.Field field = schema.keyFields.get(index);
+            int result = compareValue(
+                    field, left.values.get(index), right.values.get(field.name));
+            if (result != 0) return result;
+        }
+        return 0;
+    }
+
+    public static Key keyOf(EntitySchema schema, Row row) {
+        requireSchema(schema, row);
+        ArrayList<Object> values = new ArrayList<Object>(schema.keyFields.size());
+        for (EntitySchema.Field field : schema.keyFields) {
+            values.add(row.values.get(field.name));
+        }
+        return new Key(schema, values);
     }
 
     static int compareUnicode(String left, String right) {
@@ -106,6 +137,13 @@ public final class EntityCanonicalizer {
                 return EntityCanonicalizer.compare(schema, left, right);
             }
         };
+    }
+
+    private static int compareValue(EntitySchema.Field field, Object left, Object right) {
+        if ("integer".equals(field.type)) {
+            return Long.compare(((Long) left).longValue(), ((Long) right).longValue());
+        }
+        return compareUnicode((String) left, (String) right);
     }
 
     private static void validateValue(EntitySchema.Field field, Object value) {
@@ -183,6 +221,20 @@ public final class EntityCanonicalizer {
 
         public Object value(String field) {
             return values.get(field);
+        }
+    }
+
+    public static final class Key {
+        private final EntitySchema schema;
+        private final List<Object> values;
+
+        private Key(EntitySchema schema, List<Object> values) {
+            this.schema = schema;
+            this.values = Collections.unmodifiableList(new ArrayList<Object>(values));
+        }
+
+        public List<Object> toJsonArray() {
+            return new ArrayList<Object>(values);
         }
     }
 }

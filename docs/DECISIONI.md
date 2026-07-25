@@ -94,13 +94,42 @@ Dopo gli scheletri, la prima migrazione completa usa `patologia`.
 Motivazione: tabella piccola, indipendente e sufficiente per validare l'intero
 percorso PHP-Servlet-Django-PostgreSQL prima delle relazioni complesse.
 
+### D13 - Checkpoint autorevole in PostgreSQL
+
+Lo stato globale e il checkpoint di ogni entità, inclusi sequenza e cursori,
+sono persistiti da Django nella stessa transazione del lotto. La servlet non è
+l'autorità dello stato e riprende lo stesso `migrationId` leggendo PostgreSQL.
+
+Motivazione: una servlet può essere arrestata dopo che Django ha confermato un
+lotto ma prima di ricevere la risposta. Persistenza atomica e digest
+idempotente rendono sicuri sia il riavvio sia la ripetizione.
+
+### D14 - Retry limitati per classificazione
+
+Il core Java ritenta, entro un limite configurabile, soltanto operazioni
+idempotenti fallite per trasporto o stato HTTP temporaneo. Errori di
+autenticazione, contratto, dataset, schema, digest o lotto discordante sono
+definitivi.
+
+Motivazione: la disponibilità temporanea non deve interrompere inutilmente una
+migrazione massiva, ma un retry non deve mascherare corruzione o incompatibilità
+dei dati.
+
+### D15 - Pacchetto sorgente verificabile
+
+Il dataset massivo viene consegnato come ZIP con schema, seed, manifest,
+istruzioni e checksum esterno. Lo script di generazione usa il Progetto 1 in
+sola lettura e verifica hash e conteggi prima di creare l'archivio richiesto.
+
+Motivazione: il docente può ripristinare una sorgente esatta senza credenziali
+e senza mantenere nel repository copie SQL aggiuntive non necessarie.
+
 ## Decisioni aperte
 
 - sistema operativo esatto da supportare nella prova del docente;
 - percorso e modalità di avvio del Tomcat installato;
 - patch esatta di Django 5.2 e pacchetto PostgreSQL Python;
-- limite iniziale dei lotti dopo misure su Altervista;
-- formato del dump sorgente e sua eventuale compressione;
+- limite dei lotti da adottare sull'eventuale ambiente Altervista;
 - comando unico definitivo di configurazione/avvio/verifica;
 - URL pubblico definitivo del servizio PHP.
 
@@ -114,4 +143,3 @@ percorso PHP-Servlet-Django-PostgreSQL prima delle relazioni complesse.
 - Decisione:
 - Motivazione:
 - Conseguenze:
-

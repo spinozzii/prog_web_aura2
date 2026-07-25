@@ -23,3 +23,29 @@ aggregato delle otto entità e accetta un `MigrationId` esplicito. L'opzione
 `-Repeat` prova il rilancio idempotente. Il precedente comando Patologia resta
 un alias compatibile e avvia ora la verticale completa, che include
 `patologia`.
+
+T07 aggiunge `verify-mass-migration.ps1`: verifica anche manifest massivo,
+conteggi, digest, stato persistente e totale di 36.176 righe. Accetta un
+timeout fino a 3.600 secondi e `-Repeat` per il rilancio idempotente:
+
+```powershell
+$env:REMOTE_API_SECRET = '<segreto locale>'
+$env:BRIDGE_API_SECRET = '<segreto locale>'
+.\scripts\verify-mass-migration.ps1 `
+  -RemoteBaseUrl 'http://127.0.0.1:8081' `
+  -LocalBaseUrl 'http://127.0.0.1:8000' `
+  -BridgeBaseUrl 'http://127.0.0.1:8080/bridge' `
+  -MigrationId '00000000-0000-4000-8000-000000000001' `
+  -TimeoutSeconds 1800
+```
+
+`t07-fault-proxy.py` è un proxy di collaudo esclusivamente loopback. Può
+iniettare un solo timeout, ritardo, stato HTTP o digest alterato sul percorso
+scelto. Non registra header o corpi; quando inietta una risposta consuma il
+corpo in ingresso e chiude la connessione. Va avviato come processo separato
+con stdout e stderr distinti e arrestato usando il PID verificato.
+
+`build-source-dump.ps1` genera il pacchetto descritto da
+`database/README_SOURCE_DUMP.md`; non modifica il Progetto 1 e rifiuta
+checksum o conteggi inattesi. Gli esiti reali T07 sono in
+`docs/VERIFICA_T07.md`.

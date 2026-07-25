@@ -49,9 +49,18 @@ public final class JdkHttpTransport implements HttpTransport {
             }
             return new Response(status, responseBody, connection.getContentType());
         } catch (SocketTimeoutException error) {
-            throw new MigrationException("HTTP_TIMEOUT", 504, "Un servizio non ha risposto entro il timeout.", error);
+            throw new MigrationException(
+                    "HTTP_TIMEOUT", 504,
+                    "Un servizio non ha risposto entro il timeout.", true, error);
+        } catch (InvalidResponseException error) {
+            throw new MigrationException(
+                    "HTTP_INVALID_RESPONSE", 502,
+                    "Un servizio ha restituito una risposta HTTP non valida.",
+                    false, error);
         } catch (IOException error) {
-            throw new MigrationException("HTTP_UNAVAILABLE", 502, "Un servizio non è raggiungibile.", error);
+            throw new MigrationException(
+                    "HTTP_UNAVAILABLE", 502,
+                    "Un servizio non e raggiungibile.", true, error);
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -64,7 +73,9 @@ public final class JdkHttpTransport implements HttpTransport {
         int read;
         while ((read = input.read(buffer)) != -1) {
             total += read;
-            if (total > MAX_RESPONSE_BYTES) throw new IOException("Risposta HTTP troppo grande.");
+            if (total > MAX_RESPONSE_BYTES) {
+                throw new InvalidResponseException("Risposta HTTP troppo grande.");
+            }
             output.write(buffer, 0, read);
         }
         try {
@@ -73,7 +84,18 @@ public final class JdkHttpTransport implements HttpTransport {
                     .onUnmappableCharacter(CodingErrorAction.REPORT)
                     .decode(ByteBuffer.wrap(output.toByteArray())).toString();
         } catch (CharacterCodingException error) {
-            throw new IOException("Risposta HTTP non UTF-8.", error);
+            throw new InvalidResponseException(
+                    "Risposta HTTP non UTF-8.", error);
+        }
+    }
+
+    private static final class InvalidResponseException extends IOException {
+        private InvalidResponseException(String message) {
+            super(message);
+        }
+
+        private InvalidResponseException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

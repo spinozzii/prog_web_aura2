@@ -7,7 +7,13 @@ from django.db import DatabaseError
 from django.http import JsonResponse
 
 from .errors import MigrationApiError
-from .migration_service import validate_batch, validate_finalize, validate_migration_id
+from .migration_service import (
+    validate_batch,
+    validate_failure,
+    validate_finalize,
+    validate_initialize,
+    validate_migration_id,
+)
 from .repository import DjangoEntityRepository, DjangoPatologiaRepository
 
 
@@ -43,7 +49,13 @@ def finalize(request, migration_id):
 
 
 def migration_status(request, migration_id):
+    if request.method == "POST":
+        return _dispatch(request, migration_id, "POST", _initialize)
     return _dispatch(request, migration_id, "GET", _status)
+
+
+def migration_failure(request, migration_id):
+    return _dispatch(request, migration_id, "POST", _record_failure)
 
 
 def _dispatch(request, migration_id, expected_method, operation):
@@ -65,8 +77,10 @@ def _dispatch(request, migration_id, expected_method, operation):
 def _receive_batch(migration_id, payload):
     batch = validate_batch(payload)
     repository = _repository(batch)
-    run, duplicate = repository.apply_batch(migration_id, batch)
-    return _json({
+    result = repository.apply_batch(migration_id, batch)
+    run, duplicate = result[:2]
+    checkpoint = result[2] if len(result) == 3 else None
+    response = {
         "apiVersion": "1.0",
         "migrationId": migration_id,
         "datasetId": run.dataset_id,
@@ -76,7 +90,36 @@ def _receive_batch(migration_id, payload):
         "digest": batch["digest"],
         "idempotent": duplicate,
         "status": run.status,
+    }
+    if batch["_checkpointed"]:
+        response.update(checkpoint)
+    return _json(response, status=200 if duplicate else 201)
+
+
+def _initialize(migration_id, payload):
+    manifest = validate_initialize(payload)
+    execution, duplicate = DjangoEntityRepository().initialize(migration_id, manifest)
+    return _json({
+        "apiVersion": "1.0",
+        "migrationId": migration_id,
+        "datasetId": execution.dataset_id,
+        "status": execution.status,
+        "idempotent": duplicate,
     }, status=200 if duplicate else 201)
+
+
+def _record_failure(migration_id, payload):
+    failure = validate_failure(payload)
+    execution = DjangoEntityRepository().record_failure(migration_id, failure)
+    return _json({
+        "apiVersion": "1.0",
+        "migrationId": migration_id,
+        "datasetId": execution.dataset_id,
+        "status": execution.status,
+        "currentEntity": execution.current_entity,
+        "lastError": execution.last_error,
+        "recoverable": execution.last_error_recoverable,
+    })
 
 
 def _finalize(migration_id, payload):
@@ -112,7 +155,7 @@ def _status(migration_id, payload):
             "last_batch_sequence": run.next_sequence - 1 if run.next_sequence else None,
             "last_error": run.last_error,
         }
-    return _json({
+    response = {
         "apiVersion": "1.0",
         "migrationId": migration_id,
         "datasetId": summary["dataset_id"],
@@ -123,7 +166,14 @@ def _status(migration_id, payload):
         "batchesImported": summary["next_sequence"],
         "lastBatchSequence": summary["last_batch_sequence"],
         "lastError": summary["last_error"] or None,
-    })
+    }
+    if "entities" in summary:
+        response.update({
+            "currentEntity": summary["current_entity"],
+            "recoverable": summary["last_error_recoverable"],
+            "entities": summary["entities"],
+        })
+    return _json(response)
 
 
 def _repository(payload):

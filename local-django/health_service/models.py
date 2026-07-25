@@ -212,6 +212,40 @@ class MigrationBatch(models.Model):
         ]
 
 
+class MigrationExecution(models.Model):
+    STATUS_CHOICES = [
+        ("created", "created"),
+        ("running", "running"),
+        ("interrupted", "interrupted"),
+        ("failed", "failed"),
+        ("completed", "completed"),
+    ]
+
+    migration_id = models.CharField(max_length=36, primary_key=True)
+    dataset_id = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="created")
+    current_entity = models.CharField(max_length=32, blank=True)
+    last_error = models.CharField(max_length=64, blank=True)
+    last_error_recoverable = models.BooleanField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "migration_execution"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=[
+                    "created", "running", "interrupted", "failed", "completed"
+                ]),
+                name="migration_execution_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(current_entity="") | Q(current_entity__in=ENTITY_ORDER),
+                name="migration_execution_entity_valid",
+            ),
+        ]
+
+
 class EntityMigrationRun(models.Model):
     STATUS_CHOICES = MigrationRun.STATUS_CHOICES
 
@@ -224,6 +258,9 @@ class EntityMigrationRun(models.Model):
     next_sequence = models.PositiveIntegerField(default=0)
     imported_row_count = models.PositiveIntegerField(default=0)
     last_key = models.JSONField(default=list)
+    source_cursor = models.TextField(null=True, blank=True)
+    next_cursor = models.TextField(null=True, blank=True)
+    has_more = models.BooleanField(default=False)
     last_error = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -253,6 +290,9 @@ class EntityMigrationBatch(models.Model):
     batch_sequence = models.PositiveIntegerField()
     digest = models.CharField(max_length=64)
     row_count = models.PositiveIntegerField()
+    source_cursor = models.TextField(null=True, blank=True)
+    next_cursor = models.TextField(null=True, blank=True)
+    has_more = models.BooleanField(default=False)
 
     class Meta:
         db_table = "entity_migration_batch"

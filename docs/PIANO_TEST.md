@@ -86,7 +86,10 @@ Deve includere:
 ### Dataset massivo
 
 Usare il dataset completo del Progetto 1. I conteggi attesi sono in
-`docs/CONTRATTO_DATI.md`.
+`docs/CONTRATTO_DATI.md`. Prima dell'importazione verificare il checksum del
+pacchetto sorgente e ripristinarlo in un database MariaDB vuoto. Dopo la
+migrazione confrontare per ogni entità conteggio e digest tra manifest PHP,
+registro Django e ricalcolo dei record PostgreSQL.
 
 ## 4. Casi avversi obbligatori
 
@@ -107,6 +110,23 @@ Usare il dataset completo del Progetto 1. I conteggi attesi sono in
 - FK mancante;
 - finalizzazione con lotti mancanti;
 - riavvio dopo interruzione.
+
+Per i guasti temporanei T07 usa `scripts/t07-fault-proxy.py` soltanto su
+loopback. Il proxy può iniettare una sola attesa oltre timeout, uno stato HTTP
+temporaneo o un digest alterato. Ogni risposta sintetica consuma il corpo
+della richiesta e chiude la connessione; il log non contiene header o payload.
+Il test deve dimostrare sia il numero limitato di tentativi sia l'assenza di
+retry per dataset, digest, autenticazione o contratto non validi.
+
+Per il riavvio:
+
+1. partire da PostgreSQL vuoto e avviare una migrazione massiva;
+2. attendere un checkpoint intermedio persistito;
+3. arrestare soltanto la servlet;
+4. riavviarla con lo stesso `migrationId`;
+5. verificare che riparta dal cursore e dalla sequenza confermati;
+6. controllare 36.176 righe, 364 lotti e stato `completed`;
+7. rilanciare lo stesso identificativo e verificare conteggi invariati.
 
 ## 5. Verifiche PostgreSQL
 
@@ -163,3 +183,21 @@ La release è candidata alla consegna soltanto se:
 - dataset massivo, conteggi, digest e vincoli coincidono;
 - prova pulita entro cinque minuti superata;
 - manuale e documento PDF sono verificati visivamente.
+
+## 8. Esito osservato per T07
+
+Il 25 luglio 2026 la migrazione massiva da PostgreSQL vuoto ha completato
+36.176 righe in 364 lotti attraverso Tomcat 11; il rilancio dello stesso
+`migrationId` attraverso Tomcat 9 non ha creato duplicati. Una seconda
+migrazione è stata interrotta dopo un checkpoint intermedio e completata,
+sempre con lo stesso identificativo, dopo il riavvio di Tomcat 9.
+
+Sono stati inoltre osservati timeout remoto, HTTP 503 locale, dataset cambiato,
+digest errato e duplicato uguale o discordante. Le query SQL hanno restituito
+zero violazioni e l'audit Django ha ricalcolato digest uguali al manifest.
+Tempi, digest, checkpoint ed esiti HTTP sono registrati in
+`docs/VERIFICA_T07.md`.
+
+Questo esito soddisfa la parte massiva e di resilienza, ma non chiude ancora i
+criteri di release relativi a installazione pulita, limite di cinque minuti e
+documenti finali.

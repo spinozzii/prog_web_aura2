@@ -39,12 +39,26 @@ public final class MigrationEndpoint {
         }
     }
 
+    public Response status(String authorization, String migrationId) {
+        try {
+            authorize(authorization);
+            MigrationOrchestrator.MigrationState state = orchestrator.status(migrationId);
+            return new Response(200, Json.stringify(state.toJsonObject()));
+        } catch (MigrationException error) {
+            return error(error);
+        } catch (RuntimeException error) {
+            return error(new MigrationException(
+                    "INTERNAL_ERROR", 500, "Errore interno della servlet."));
+        }
+    }
+
     public static Response error(MigrationException error) {
         LinkedHashMap<String, Object> body = new LinkedHashMap<String, Object>();
         body.put("apiVersion", API_VERSION);
         LinkedHashMap<String, Object> detail = new LinkedHashMap<String, Object>();
         detail.put("code", error.code);
         detail.put("message", error.getMessage());
+        detail.put("recoverable", Boolean.valueOf(error.recoverable));
         body.put("error", detail);
         return new Response(error.httpStatus, Json.stringify(body));
     }

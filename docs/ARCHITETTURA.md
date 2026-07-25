@@ -120,7 +120,7 @@ Contiene:
 
 ### Export remoto
 
-`GET /api/v1/export/{entity}?cursor=...&limit=...`
+`GET /api/v1/export/{entity}?datasetId=...&cursor=...&limit=...`
 
 Contiene:
 
@@ -134,15 +134,19 @@ Contiene:
 - digest del lotto.
 
 Il cursore è opaco per il chiamante. Il server usa internamente la chiave
-primaria completa come paginazione keyset.
+primaria completa come paginazione keyset. `datasetId` è obbligatorio: la
+prima pagina dell'entità confronta l'identità corrente della sorgente con
+quella fissata dal manifest, mentre ogni cursore successivo è firmato e legato
+alla stessa identità.
 
 ### Avvio della migrazione
 
 `POST /api/v1/migrations` sulla servlet.
 
 La servlet crea un `migrationId`, controlla i servizi, legge il manifest e
-inizia il flusso. Una seconda richiesta con lo stesso identificativo non deve
-creare duplicazioni.
+inizializza il registro locale o ne legge lo stato persistente e inizia il
+flusso. Una seconda richiesta con lo stesso identificativo e dataset riprende
+dal checkpoint confermato e non crea duplicazioni.
 
 ### Import locale
 
@@ -184,6 +188,7 @@ Stati minimi:
 
 - `created`;
 - `running`;
+- `interrupted`;
 - `failed`;
 - `completed`.
 
@@ -227,7 +232,36 @@ dati usa le chiavi naturali del dominio e operazioni compatibili con un
 rilancio. La finalizzazione non cancella o sostituisce silenziosamente dati
 estranei.
 
-## 7. Installazione
+## 7. Resilienza T07
+
+Lo stato globale risiede in PostgreSQL, non nella memoria della servlet. Per
+ogni entità il checkpoint conserva almeno:
+
+- stato e conteggio importato;
+- prossima sequenza di lotto;
+- ultimo cursore sorgente confermato e cursore successivo;
+- indicazione `hasMore`;
+- digest e conteggio attesi;
+- ultimo errore sintetico e sua recuperabilità.
+
+La conferma del lotto e l'avanzamento del checkpoint sono atomici. Se la
+servlet viene arrestata dopo che Django ha confermato un lotto, al riavvio lo
+stesso `migrationId` legge il valore autorevole da PostgreSQL; se una risposta
+è andata persa, la ripetizione dello stesso lotto viene riconosciuta dal
+digest.
+
+Il core Java applica timeout e un numero limitato di retry soltanto a
+operazioni idempotenti. Errori di trasporto e risposte temporanee come 408,
+429, 500, 502, 503 e 504 sono recuperabili entro quel limite. Autenticazione,
+contratto, dataset cambiato, digest errato e lotto discordante sono definitivi
+e vengono registrati senza retry.
+
+Prima di completare la migrazione, Java rilegge il manifest remoto e confronta
+ordine, conteggi, digest e `datasetId`; `generatedAt` è escluso dal confronto
+di identità. Django rifiuta inoltre la finalizzazione finché il checkpoint
+indica che la sorgente non è esaurita.
+
+## 8. Installazione
 
 Il pacchetto finale dovrà contenere:
 
@@ -250,7 +284,7 @@ Il configuratore:
 7. avvia o guida l'avvio dei servizi;
 8. esegue salute/readiness e una verifica sintetica.
 
-## 8. Osservabilità
+## 9. Osservabilità
 
 I log usano:
 

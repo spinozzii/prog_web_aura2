@@ -23,7 +23,7 @@ front controller e permette lo stesso percorso con `php -S -t public`.
 `GET /health` non richiede database. Le API di migrazione sono:
 
 - `GET /api/v1/manifest`;
-- `GET /api/v1/export/{entity}?limit=...&cursor=...`.
+- `GET /api/v1/export/{entity}?datasetId=...&limit=...&cursor=...`.
 
 Le entità, i campi, i tipi e le chiavi sono caricati dalla whitelist
 versionata `shared/entity-schema.json`. L'ordine del manifest è:
@@ -45,6 +45,13 @@ tabelle in whitelist. La paginazione usa l'intera chiave primaria, inclusa la
 tupla delle chiavi composte; il cursore opaco contiene la tupla tipizzata ed è
 autenticato con HMAC. La sorgente fixture vive sotto `tests` e non viene
 caricata dal front controller.
+
+`datasetId` è obbligatorio per l'export. Alla prima pagina di ogni entità il
+servizio ricalcola l'identità globale e rifiuta con `DATASET_CHANGED` una
+sorgente diversa dal manifest fissato. Le pagine successive usano il cursore
+HMAC già legato a entità e dataset, evitando scansioni globali ripetute; prima
+del completamento l'orchestratore rilegge comunque il manifest. Il servizio
+resta in sola lettura.
 
 Non è richiesto Composer. I test isolati richiedono PHP CLI:
 

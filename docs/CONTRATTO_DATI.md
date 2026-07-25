@@ -122,6 +122,12 @@ paginazione sottostante usa:
 Un cursore non valido, scaduto o riferito a un'altra entità produce errore
 client esplicito. `limit` ha un massimo deciso dal server.
 
+Da T07 ogni export richiede anche il `datasetId` a 64 cifre esadecimali
+ricevuto dal manifest. Un cursore è valido soltanto per quella precisa
+identità del dataset. La prima pagina di ogni entità ricontrolla la sorgente:
+se conteggi o digest sono cambiati, l'export risponde con un errore definitivo
+prima di restituire righe della nuova entità.
+
 ## 4. Canonicalizzazione e digest
 
 La specifica eseguibile definitiva deve essere implementata una sola volta per
@@ -306,6 +312,60 @@ predecessore completato e, per l'ultima entità:
 - almeno una riga `patologia_ricovero` per ogni `ricovero`;
 - un `progressivo_ricovero` per ogni ospedale;
 - `prossimo_cod = MAX(ricovero.cod dello stesso ospedale) + 1`.
+
+### 4.4 Checkpoint e ripresa T07
+
+Il registro globale Django viene inizializzato con:
+
+```text
+POST /api/v1/migrations/{migrationId}
+```
+
+Il corpo contiene esattamente `apiVersion`, `datasetId`, `entityOrder` ed
+`entities`; ogni descrittore di entità contiene nome, conteggio e digest del
+manifest. Una nuova esecuzione restituisce HTTP 201 e `idempotent: false`; la
+stessa inizializzazione, con identità invariata, restituisce HTTP 200 e
+`idempotent: true`. Un `migrationId` già legato a un dataset diverso produce
+conflitto.
+
+Ogni richiesta di lotto T07 aggiunge i campi obbligatori:
+
+- `sourceCursor`: cursore usato per leggere la pagina, `null` soltanto per la
+  prima;
+- `nextCursor`: cursore opaco della pagina seguente oppure `null`;
+- `hasMore`: vero se e soltanto se `nextCursor` non è nullo.
+
+Django registra questi valori nella stessa transazione del lotto. La risposta
+restituisce il checkpoint autorevole; in caso di ripetizione identica prevale
+quello già persistito, anche se un cursore HMAC rigenerato contiene una diversa
+scadenza.
+
+Lo stato globale:
+
+```text
+GET /api/v1/migrations/{migrationId}
+```
+
+include `status`, `currentEntity`, `lastError`, `recoverable` e gli otto
+checkpoint. Ogni checkpoint espone `entity`, `status`, `expectedRowCount`,
+`expectedDigest`, `rowsImported`, `nextBatchSequence`, `lastBatchSequence`,
+`sourceCursor`, `nextCursor`, `hasMore`, `lastKey` e `lastError`.
+
+Gli stati globali sono `created`, `running`, `interrupted`, `failed` e
+`completed`. La servlet rilegge questo stato a ogni avvio o rilancio e riparte
+da `nextBatchSequence` e `nextCursor`. Django rifiuta la finalizzazione se
+`hasMore` è ancora vero o il conteggio non è completo.
+
+Quando l'orchestratore interrompe il lavoro segnala al servizio locale:
+
+```text
+POST /api/v1/migrations/{migrationId}/failure
+```
+
+con `apiVersion`, `datasetId`, `entity`, `errorCode` e `recoverable`. Errori di
+trasporto o HTTP temporanei possono lasciare lo stato `interrupted`; dataset,
+schema, digest o lotto discordante producono invece uno stato `failed`
+definitivo.
 
 ## 5. Conteggi attesi del dataset corrente
 

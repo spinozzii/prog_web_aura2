@@ -55,6 +55,12 @@ function assertError(int $status, string $code, ApiResponse $response, string $c
     }
 }
 
+/** @param array<string, mixed> $query */
+function exportQuery(string $datasetId, array $query = []): array
+{
+    return ['datasetId' => $datasetId] + $query;
+}
+
 /** @return array<string, mixed> */
 function loadFixture(): array
 {
@@ -142,7 +148,7 @@ foreach ($registry->all() as $schema) {
     $cursor = null;
     $collected = [];
     do {
-        $query = ['limit' => '1'];
+        $query = exportQuery($datasetId, ['limit' => '1']);
         if ($cursor !== null) {
             $query['cursor'] = $cursor;
         }
@@ -169,12 +175,22 @@ foreach ($registry->all() as $schema) {
     );
 }
 
-$ricoveroFirst = $api->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth);
+$ricoveroFirst = $api->handle(
+    'GET',
+    '/api/v1/export/ricovero',
+    exportQuery($datasetId, ['limit' => '1']),
+    $auth
+);
 assertStatus(200, $ricoveroFirst, 'prima pagina ricovero');
 $decodedRicovero = $codec->decode($ricoveroFirst->body['nextCursor']);
 assertSameValue(['H001', 1], $decodedRicovero['after'], 'tupla cursore ricovero');
 
-$relationFirst = $api->handle('GET', '/api/v1/export/patologia_ricovero', ['limit' => '1'], $auth);
+$relationFirst = $api->handle(
+    'GET',
+    '/api/v1/export/patologia_ricovero',
+    exportQuery($datasetId, ['limit' => '1']),
+    $auth
+);
 assertStatus(200, $relationFirst, 'prima pagina relazione');
 $decodedRelation = $codec->decode($relationFirst->body['nextCursor']);
 assertSameValue(['H001', 1, 'P001'], $decodedRelation['after'], 'tupla cursore relazione');
@@ -183,14 +199,24 @@ foreach (['0', '-1', '101', '1.0', 'abc', ' 1', str_repeat('9', 100)] as $invali
     assertError(
         400,
         'INVALID_LIMIT',
-        $api->handle('GET', '/api/v1/export/patologia', ['limit' => $invalidLimit], $auth),
+        $api->handle(
+            'GET',
+            '/api/v1/export/patologia',
+            exportQuery($datasetId, ['limit' => $invalidLimit]),
+            $auth
+        ),
         'limite ' . $invalidLimit
     );
 }
 assertError(
     400,
     'INVALID_LIMIT',
-    $api->handle('GET', '/api/v1/export/patologia', ['limit' => ['1']], $auth),
+    $api->handle(
+        'GET',
+        '/api/v1/export/patologia',
+        exportQuery($datasetId, ['limit' => ['1']]),
+        $auth
+    ),
     'limite array'
 );
 assertError(
@@ -202,14 +228,41 @@ assertError(
 assertError(
     400,
     'INVALID_CURSOR',
-    $api->handle('GET', '/api/v1/export/patologia', ['cursor' => ''], $auth),
+    $api->handle(
+        'GET',
+        '/api/v1/export/patologia',
+        exportQuery($datasetId, ['cursor' => '']),
+        $auth
+    ),
     'cursore vuoto'
 );
 assertError(
     400,
     'INVALID_CURSOR',
-    $api->handle('GET', '/api/v1/export/patologia', ['cursor' => ['x']], $auth),
+    $api->handle(
+        'GET',
+        '/api/v1/export/patologia',
+        exportQuery($datasetId, ['cursor' => ['x']]),
+        $auth
+    ),
     'cursore array'
+);
+assertError(
+    400,
+    'INVALID_DATASET',
+    $api->handle('GET', '/api/v1/export/patologia', ['limit' => '1'], $auth),
+    'dataset assente'
+);
+assertError(
+    400,
+    'INVALID_DATASET',
+    $api->handle(
+        'GET',
+        '/api/v1/export/patologia',
+        ['limit' => '1', 'datasetId' => 'non-valido'],
+        $auth
+    ),
+    'dataset malformato'
 );
 
 $validCursor = $ricoveroFirst->body['nextCursor'];
@@ -217,7 +270,12 @@ foreach ([$validCursor . 'x', substr($validCursor, 0, -1), '*.' . str_repeat('A'
     assertError(
         400,
         'INVALID_CURSOR',
-        $api->handle('GET', '/api/v1/export/ricovero', ['limit' => '1', 'cursor' => $bad], $auth),
+        $api->handle(
+            'GET',
+            '/api/v1/export/ricovero',
+            exportQuery($datasetId, ['limit' => '1', 'cursor' => $bad]),
+            $auth
+        ),
         'cursore alterato'
     );
 }
@@ -227,7 +285,10 @@ assertError(
     $api->handle(
         'GET',
         '/api/v1/export/ricovero',
-        ['limit' => '1', 'cursor' => $codec->encode('ospedale', $datasetId, ['H001'])],
+        exportQuery(
+            $datasetId,
+            ['limit' => '1', 'cursor' => $codec->encode('ospedale', $datasetId, ['H001'])]
+        ),
         $auth
     ),
     'cursore altra entita'
@@ -239,7 +300,10 @@ foreach ([['H001'], ['H001', '1'], ['H001', 1, 'P001']] as $wrongTuple) {
         $api->handle(
             'GET',
             '/api/v1/export/ricovero',
-            ['limit' => '1', 'cursor' => $codec->encode('ricovero', $datasetId, $wrongTuple)],
+            exportQuery(
+                $datasetId,
+                ['limit' => '1', 'cursor' => $codec->encode('ricovero', $datasetId, $wrongTuple)]
+            ),
             $auth
         ),
         'forma cursore'
@@ -253,6 +317,7 @@ assertError(
         '/api/v1/export/ricovero',
         [
             'limit' => '1',
+            'datasetId' => $datasetId,
             'cursor' => $codec->encode('ricovero', str_repeat('0', 64), ['H001', 1]),
         ],
         $auth
@@ -265,7 +330,12 @@ $expiryCodec = new CursorCodec($cursorSecret, static function () use (&$expiryNo
     return $expiryNow;
 }, 10);
 $expiryApi = newApi($rowsByEntity, $registry, $expiryCodec, $expirySource);
-$expiring = $expiryApi->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth);
+$expiring = $expiryApi->handle(
+    'GET',
+    '/api/v1/export/ricovero',
+    exportQuery($datasetId, ['limit' => '1']),
+    $auth
+);
 assertStatus(200, $expiring, 'cursore a scadenza');
 $expiryNow = 1011;
 assertError(
@@ -274,38 +344,74 @@ assertError(
     $expiryApi->handle(
         'GET',
         '/api/v1/export/ricovero',
-        ['limit' => '1', 'cursor' => $expiring->body['nextCursor']],
+        exportQuery(
+            $datasetId,
+            ['limit' => '1', 'cursor' => $expiring->body['nextCursor']]
+        ),
         $auth
     ),
     'cursore scaduto'
 );
 
-// A change in any entity invalidates a cursor, not only a change in the
-// entity currently being exported.
+// Continuation pages use the already authenticated dataset pin.  The next
+// entity boundary (and Java's final manifest refresh) detects any change.
 $changedApi = newApi($rowsByEntity, $registry, $codec, $changedSource);
-$changedFirst = $changedApi->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth);
+$changedFirst = $changedApi->handle(
+    'GET',
+    '/api/v1/export/ricovero',
+    exportQuery($datasetId, ['limit' => '1']),
+    $auth
+);
 $changedSource->rowsByEntity['cittadino'][0]['indirizzo'] = 'Indirizzo cambiato';
+assertStatus(
+    200,
+    $changedApi->handle(
+        'GET',
+        '/api/v1/export/ricovero',
+        exportQuery(
+            $datasetId,
+            ['limit' => '1', 'cursor' => $changedFirst->body['nextCursor']]
+        ),
+        $auth
+    ),
+    'pagina con dataset fissato'
+);
 assertError(
     409,
     'DATASET_CHANGED',
     $changedApi->handle(
         'GET',
-        '/api/v1/export/ricovero',
-        ['limit' => '1', 'cursor' => $changedFirst->body['nextCursor']],
+        '/api/v1/export/ospedale',
+        exportQuery($datasetId, ['limit' => '1']),
         $auth
     ),
-    'dataset cambiato fra pagine'
+    'dataset cambiato al confine entita'
 );
 
 $raceApi = newApi($rowsByEntity, $registry, $codec, $raceSource);
 $raceSource->afterNextPage(static function (FixtureEntitySource $source): void {
     $source->rowsByEntity['patologia'][0]['nome'] = 'Mutata durante la pagina';
 });
+assertStatus(
+    200,
+    $raceApi->handle(
+        'GET',
+        '/api/v1/export/ricovero',
+        exportQuery($datasetId, ['limit' => '1']),
+        $auth
+    ),
+    'mutazione durante pagina fissata'
+);
 assertError(
     409,
     'DATASET_CHANGED',
-    $raceApi->handle('GET', '/api/v1/export/ricovero', ['limit' => '1'], $auth),
-    'dataset cambiato durante pagina'
+    $raceApi->handle(
+        'GET',
+        '/api/v1/export/ospedale',
+        exportQuery($datasetId, ['limit' => '1']),
+        $auth
+    ),
+    'dataset cambiato dopo pagina'
 );
 
 foreach ([
@@ -368,7 +474,12 @@ foreach ($emptyManifest->body['entities'] as $metadata) {
     assertSameValue(0, $metadata['rowCount'], 'conteggio vuoto');
     assertSameValue(hash('sha256', ''), $metadata['digest'], 'digest vuoto');
 }
-$emptyPage = $emptyApi->handle('GET', '/api/v1/export/patologia', ['limit' => '10'], $auth);
+$emptyPage = $emptyApi->handle(
+    'GET',
+    '/api/v1/export/patologia',
+    exportQuery($emptyManifest->body['datasetId'], ['limit' => '10']),
+    $auth
+);
 assertStatus(200, $emptyPage, 'pagina vuota');
 assertSameValue([], $emptyPage->body['rows'] ?? null, 'righe vuote');
 assertSameValue(false, $emptyPage->body['hasMore'] ?? null, 'hasMore vuoto');

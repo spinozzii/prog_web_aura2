@@ -1,0 +1,34 @@
+{
+  "formatVersion": 1,
+  "datasetId": "drive-aura-51-massivo-v2",
+  "deterministicSeed": 510326,
+  "logicalExcelSqlDigest": "6f1636686ac472921f60f699d021b80a1b65ca93a8c118215317df7823d5dfc3",
+  "sourceDocumentation": {
+    "name": "README_IMPORTAZIONE.md",
+    "bytes": 2381,
+    "sha256": "d071c3766631a413b59959a44ae54ea476c3da67e61d0c4d8490affbcec8562a"
+  },
+  "totalRowCount": 36176,
+  "rowCounts": {
+    "cittadino": 3200,
+    "patologia": 200,
+    "patologia_cronica": 143,
+    "patologia_mortale": 81,
+    "ospedale": 30,
+    "ricovero": 12000,
+    "patologia_ricovero": 20492,
+    "progressivo_ricovero": 30
+  },
+  "sourceFiles": [
+    {
+      "name": "schema.sql",
+      "bytes": 4721,
+      "sha256": "f1f162683f987a3f7fae98eba8ef830b03418baf57fe60026c406ca1797d2ada"
+    },
+    {
+      "name": "seed_massivo.sql",
+      "bytes": 2469421,
+      "sha256": "0d90404c2cc754d1df5078c04b15a39c941f4070d0ba6f2664f54c3c78bc3972"
+    }
+  ]
+}

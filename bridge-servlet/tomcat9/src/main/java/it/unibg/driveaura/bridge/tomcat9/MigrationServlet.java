@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /** Tomcat 9 adapter; all migration behavior remains in the Java 8 core. */
-@WebServlet("/api/v1/migrations")
+@WebServlet(urlPatterns = {"/api/v1/migrations", "/api/v1/migrations/*"})
 public final class MigrationServlet extends HttpServlet {
     private static final int MAX_REQUEST_BYTES = 4096;
 
@@ -26,6 +26,9 @@ public final class MigrationServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         MigrationEndpoint.Response result;
         try {
+            if (request.getPathInfo() != null && !request.getPathInfo().isEmpty()) {
+                throw new MigrationException("NOT_FOUND", 404, "Risorsa non trovata.");
+            }
             String body = readBody(request);
             if (!body.trim().isEmpty() && !jsonContentType(request.getContentType())) {
                 throw new MigrationException(
@@ -38,6 +41,28 @@ public final class MigrationServlet extends HttpServlet {
             result = MigrationEndpoint.error(error);
         }
         write(response, result);
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        MigrationEndpoint.Response result;
+        try {
+            MigrationEndpoint endpoint =
+                    new MigrationEndpoint(MigrationConfig.fromEnvironment(), new JdkHttpTransport());
+            result = endpoint.status(
+                    request.getHeader("Authorization"), migrationId(request.getPathInfo()));
+        } catch (MigrationException error) {
+            result = MigrationEndpoint.error(error);
+        }
+        write(response, result);
+    }
+
+    private static String migrationId(String pathInfo) {
+        if (pathInfo == null || pathInfo.length() < 2
+                || pathInfo.charAt(0) != '/' || pathInfo.indexOf('/', 1) >= 0) {
+            throw new MigrationException("NOT_FOUND", 404, "Risorsa non trovata.");
+        }
+        return pathInfo.substring(1);
     }
 
     private static String readBody(HttpServletRequest request) throws IOException {

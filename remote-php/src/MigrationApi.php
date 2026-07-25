@@ -86,11 +86,21 @@ final class MigrationApi
         }
         $schema = $this->registry->get($entity);
         foreach (array_keys($query) as $name) {
-            if (!is_string($name) || ($name !== 'limit' && $name !== 'cursor')) {
+            if (
+                !is_string($name)
+                || ($name !== 'limit' && $name !== 'cursor' && $name !== 'datasetId')
+            ) {
                 throw new ApiException(400, 'INVALID_REQUEST', 'La richiesta non è valida.');
             }
         }
 
+        $datasetId = $query['datasetId'] ?? null;
+        if (
+            !is_string($datasetId)
+            || preg_match('/\A[0-9a-f]{64}\z/D', $datasetId) !== 1
+        ) {
+            throw new ApiException(400, 'INVALID_DATASET', 'Il dataset non è valido.');
+        }
         $rawLimit = $query['limit'] ?? (string) self::DEFAULT_BATCH_SIZE;
         if (!is_string($rawLimit) || preg_match('/\A[1-9][0-9]*\z/D', $rawLimit) !== 1) {
             throw new ApiException(400, 'INVALID_LIMIT', 'Il limite non è valido.');
@@ -100,8 +110,6 @@ final class MigrationApi
             throw new ApiException(400, 'INVALID_LIMIT', 'Il limite supera il massimo consentito.');
         }
 
-        $before = DatasetIdentity::capture($this->registry, $this->source);
-        $datasetId = $before['datasetId'];
         $cursor = null;
         $after = null;
         if (array_key_exists('cursor', $query)) {
@@ -121,6 +129,14 @@ final class MigrationApi
             } catch (\InvalidArgumentException) {
                 throw self::invalidCursor();
             }
+        } else {
+            // Validate the pinned manifest at each entity boundary.  Continuation
+            // pages rely on the authenticated cursor; Java re-reads the complete
+            // manifest before declaring the migration successful.
+            $snapshot = DatasetIdentity::capture($this->registry, $this->source);
+            if ($snapshot['datasetId'] !== $datasetId) {
+                throw new ApiException(409, 'DATASET_CHANGED', 'Il dataset remoto è cambiato.');
+            }
         }
 
         $page = $schema->normalizeRows(
@@ -134,24 +150,6 @@ final class MigrationApi
                 'INVALID_SOURCE_DATA',
                 'La sorgente remota non rispetta il contratto.'
             );
-        }
-
-        // Re-capture every entity after the page query: the returned global
-        // dataset id then proves that no table changed across this request.
-        $afterSnapshot = DatasetIdentity::capture($this->registry, $this->source);
-        if ($afterSnapshot['datasetId'] !== $datasetId) {
-            throw new ApiException(409, 'DATASET_CHANGED', 'Il dataset remoto è cambiato.');
-        }
-
-        $knownRows = [];
-        foreach ($afterSnapshot['rowsByEntity'][$entity] as $knownRow) {
-            $knownRows[EntitySchema::keyIdentity($schema->keyOf($knownRow))] = $knownRow;
-        }
-        foreach ($page as $row) {
-            $identity = EntitySchema::keyIdentity($schema->keyOf($row));
-            if (!isset($knownRows[$identity]) || $knownRows[$identity] !== $row) {
-                throw new ApiException(409, 'DATASET_CHANGED', 'Il dataset remoto è cambiato.');
-            }
         }
 
         $hasMore = count($page) > $limit;

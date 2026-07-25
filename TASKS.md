@@ -6,17 +6,6 @@ Nessuna.
 
 ## BACKLOG
 
-- [ ] **T07 - Orchestrazione completa e resilienza**
-  - ordine automatico delle entità;
-  - identificativo della migrazione, checkpoint, retry limitati e resume;
-  - autenticazione tra servizi, timeout e limiti dei lotti;
-  - stato finale verificabile.
-
-- [ ] **T08 - Dataset massivo e dump sorgente**
-  - migrazione dell'intero dataset del Progetto 1;
-  - confronto di conteggi, digest e vincoli;
-  - dump del database di origine per la consegna.
-
 - [ ] **T09 - Installazione ripetibile sotto cinque minuti**
   - configuratore da riga di comando;
   - dipendenze Python offline;
@@ -38,25 +27,22 @@ Nessuna.
 
 ## IN REVISIONE
 
-- [ ] **T03 - Estensione verticale a tutte le entità rimanenti**
-  - introdotti schema e fixture condivisi per tutte le otto entità, con campi,
-    tipi, domini, ordine, chiavi, FK, unicità, byte canonici e digest globali;
-  - generalizzati manifest, export PHP/PDO, keyset su tuple complete, cursori
-    HMAC e controllo del dataset senza duplicare la logica per entità;
-  - aggiunti modelli e migrazioni PostgreSQL, inclusa la FK composta reale,
-    registri per entità/lotto, transazioni, rollback, ordine e idempotenza;
-  - esteso il core Java 8 alle otto entità, mantenendo sottili e funzionanti
-    entrambi gli adattatori Tomcat 9/`javax` e Tomcat 11/`jakarta`;
-  - coperti ordine, PK composte, date, decimali, FK, unicità, digest/conteggi,
-    rollback, associazioni, progressivi, dataset globale e rilancio;
-  - runner rigoroso completo e 25 test Django superati; migrazioni pulite;
-    `mvn clean package` superato con produzione di entrambi i WAR;
-  - osservata la verticale reale MariaDB → PHP/PDO → Tomcat 11 → Django →
-    PostgreSQL su 22 righe/lotti; verificati conteggi, digest e vincoli;
-  - osservato il rilancio idempotente dello stesso `migrationId` via Tomcat 9,
-    senza duplicare run, lotti o dati;
-  - documentata la prova in `docs/VERIFICA_T03.md`; Progetto 1, Altervista,
-    dataset massivo, resilienza T07, installatore e PDF non sono stati avviati.
+- [ ] **T07 - Resilienza e migrazione del dataset massivo reale**
+  - usati in sola lettura dal Progetto 1 `database/schema.sql`,
+    `database/seed_massivo.sql` e `database/README_IMPORTAZIONE.md`;
+  - migrato realmente il dataset di 36.176 righe attraverso
+    `MariaDB → PHP/PDO → servlet Java/Tomcat → Django → PostgreSQL`;
+  - prodotti dump sorgente deterministico, checksum e istruzioni di ripristino;
+  - implementati stato globale, checkpoint persistenti, retry limitati,
+    distinzione recuperabile/definitiva e ripresa con lo stesso `migrationId`;
+  - osservate migrazione completa da PostgreSQL vuoto, interruzione/ripresa,
+    rilancio idempotente e avvio dei WAR Tomcat 11 e Tomcat 9;
+  - verificati timeout remoto, `503` Django temporaneo, dataset cambiato,
+    digest errato e duplicato identico/discordante;
+  - verificati conteggi, digest, PK, FK, univocità, associazioni e progressivi;
+  - runner rigoroso, test Django, migrazioni e `mvn clean package` superati;
+  - evidenze e limiti effettivi registrati in `docs/VERIFICA_T07.md`;
+  - in attesa della revisione Work; T09 non è stata iniziata.
 
 ## COMPLETATE
 
@@ -108,6 +94,16 @@ Nessuna.
   - runner completo, 18 test Django, build dei due WAR e migrazioni superati;
   - commit locale e GitHub verificati su
     `fc90d808857caf156fa929a157faf745d8a0570f`;
+  - revisione Work conclusa senza correzioni bloccanti.
+
+- [x] **T03 - Estensione verticale a tutte le entità rimanenti**
+  - estesi schema, PHP, Java e Django alle otto entità complessive;
+  - preservati PK/FK, chiavi composte, univocità, date, decimali e progressivi;
+  - runner completo, 25 test Django, migrazioni e build dei due WAR superati;
+  - osservata verticale reale sulle otto entità e rilancio idempotente con
+    entrambi gli adattatori Tomcat;
+  - commit locale e GitHub verificati su
+    `d86d474a700f168421f00286b0336eeea64aec25`;
   - revisione Work conclusa senza correzioni bloccanti.
 
 ## BLOCCATE

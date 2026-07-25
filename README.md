@@ -24,11 +24,12 @@ consegnato.
 
 ## Stato
 
-T03 ha esteso la verticale già funzionante a tutte le otto entità del
-contratto. Manifest ed export PHP/PDO, orchestrazione servlet, importazione
-transazionale Django e persistenza PostgreSQL sono configurati dallo schema
-condiviso. La prova reale con fixture relazionale ha attraversato entrambi i
-WAR; l'attività è in revisione e lo stato vincolante resta in `TASKS.md`.
+T07 ha verificato la verticale completa sul dataset massivo di 36.176 righe.
+La migrazione reale da MariaDB a PostgreSQL ha attraversato PHP/PDO, entrambi
+gli adattatori Tomcat e Django, con 364 lotti, digest coincidenti, controlli
+SQL, rilancio idempotente e ripresa dopo interruzione. Il pacchetto sorgente
+con checksum è in `database`; l'attività resta soggetta a revisione e lo stato
+vincolante è sempre in `TASKS.md`.
 
 ## Origine dei dati
 
@@ -62,6 +63,7 @@ Altervista avverrà solo in una fase esplicitamente autorizzata.
 - `docs/PIANO_TEST.md`: strategia di verifica;
 - `docs/VERIFICA_T02_2.md`: procedura ed esito osservato della prima verticale;
 - `docs/VERIFICA_T03.md`: procedura ed esito della verticale completa;
+- `docs/VERIFICA_T07.md`: migrazione massiva e prove di resilienza osservate;
 - `docs/RISCHI.md`: rischi e contromisure.
 
 ## Avvio del lavoro

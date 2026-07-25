@@ -5,9 +5,9 @@
 La scelta B è approvata: migrazione tramite servizio PHP remoto, servlet Java
 intermedia e servizio Django locale verso PostgreSQL.
 
-T00, T01, T01.1, T01.2, T02.1 e T02.2 sono completate. Le precedenti
-T03-T06 sono accorpate in T03, ora in revisione dopo l'estensione della
-verticale a tutte le entità. Non esiste alcuna attività autorizzata.
+T00, T01, T01.1, T01.2, T02.1, T02.2 e T03 sono completate. T07, relativa
+alla resilienza e al dataset massivo, è in revisione. Non ci sono attività
+autorizzate.
 
 ## Fatti e decisioni verificati
 
@@ -129,15 +129,57 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
   sono coperti dai test. Procedura ed evidenze sono in
   `docs/VERIFICA_T03.md`.
 
+## Esito T07
+
+- I tre file sorgente del Progetto 1 sono stati usati esclusivamente in
+  lettura. `schema.sql` e `seed_massivo.sql` hanno SHA-256
+  `f1f162683f987a3f7fae98eba8ef830b03418baf57fe60026c406ca1797d2ada` e
+  `0d90404c2cc754d1df5078c04b15a39c941f4070d0ba6f2664f54c3c78bc3972`;
+  il Progetto 1 è rimasto pulito e invariato.
+- Stato globale e checkpoint per entità sono persistiti in PostgreSQL.
+  L'orchestratore riprende da cursore, sequenza e ultima chiave confermati,
+  salta le entità completate e ritenta, al massimo due volte per default,
+  soltanto richieste idempotenti con errori temporanei.
+- Una migrazione reale da PostgreSQL vuoto tramite Tomcat 11.0.24 ha trasferito
+  36.176 righe in 364 lotti in `76,306 s`: conteggi
+  `3.200/200/143/81/30/12.000/20.492/30`, stato `completed` e dataset
+  `75f461f906b5a6a4ed1252218ea2db664d8f929ba68403760474ff2f4d199e39`.
+- Lo stesso `migrationId` è stato rilanciato tramite Tomcat 9.0.120 in
+  `5,743 s` senza nuovi lotti o duplicazioni. La prova interrotta ha fermato
+  Tomcat a 18.154 righe/183 lotti; il checkpoint atomico finale era
+  18.254/184. Dopo il riavvio, lo stesso `migrationId` ha completato le righe
+  restanti in `37,438 s`, tornando a 36.176/364.
+- Nella prova di ripresa un timeout remoto e un `503` Django sono stati
+  iniettati una sola volta e superati dai retry. Dataset cambiato e digest
+  corrotto sono stati rifiutati senza retry come fallimenti definitivi, con
+  zero righe importate. Un lotto identico ha restituito `201` e poi `200`
+  idempotente; la variante discordante con digest coerente ha restituito
+  `409 BATCH_CONFLICT`.
+- L'audit SQL fail-fast ha confermato conteggi, PK semplici e composte, FK,
+  direttore univoco, domini, associazioni e progressivi
+  `MAX(cod) + 1`, tutti senza anomalie. Il ricalcolo indipendente Django ha
+  riprodotto il dataset ID e gli otto digest sorgente.
+- Il runner rigoroso completo è passato in `4,719 s`, con 33 test Django
+  (`0,624 s`) e contratti PHP/Java; `mvn clean package` è passato in
+  `4,879 s`, `manage.py check` e `makemigrations --check --dry-run` sono
+  passati e i WAR Tomcat 9/11 misurano 71.356/71.371 byte.
+- Il dump consegnabile `database/drive-aura-51-source-v2.zip` misura
+  407.251 byte, ha SHA-256
+  `65204bc3b87b2e01a8a12f4a228dd93ad93d865348e1595efb901c6766d51d38`,
+  è rigenerabile in modo deterministico e contiene soltanto SQL, manifest e
+  istruzioni di ripristino senza segreti.
+- Procedura, tempi, lotti, digest, fault injection e limiti osservati sono
+  documentati in `docs/VERIFICA_T07.md`.
+
 ## Limiti residui
 
 - PHP, Django, MariaDB, PostgreSQL e Tomcat usati nel collaudo erano runtime
   portabili temporanei e non sono componenti della consegna.
-- La verticale completa ha usato una fixture controllata di 22 righe: non è
-  una distribuzione Altervista, non ha coinvolto Progetto 1 e non è la futura
-  prova sul dataset massivo.
-- Installatore finale, dipendenze offline, dataset massivo e documenti PDF
-  restano attività di backlog e non sono stati iniziati.
+- La prova massiva è locale: non è una distribuzione Altervista e non usa
+  credenziali remote. Il dataset del Progetto 1 è sintetico ed è stato
+  consultato soltanto come sorgente in sola lettura.
+- Installatore e dipendenze offline (T09), documenti PDF (T10) e audit finale
+  di consegna (T11) restano attività di backlog e non sono stati iniziati.
 
 ## Revisione Work T02.2
 
@@ -152,7 +194,22 @@ Il 24 luglio 2026 Work ha verificato nuovamente:
 
 T02.2 è approvata senza correzioni bloccanti.
 
+## Revisione Work T03
+
+Il 25 luglio 2026 Work ha verificato:
+
+- commit locale, `origin/main` e GitHub coincidenti su
+  `d86d474a700f168421f00286b0336eeea64aec25`;
+- schema condiviso completo per le otto entità;
+- runner completo con contratti PHP/Java e 25 test Django;
+- migrazioni e vincoli per PK/FK, chiavi composte e progressivi;
+- `mvn clean package` e produzione dei due WAR;
+- assenza di artefatti, cache e credenziali dai file tracciati.
+
+T03 è approvata senza correzioni bloccanti. Nel Progetto 1 sono disponibili,
+in sola lettura, `database/schema.sql` e `database/seed_massivo.sql` con
+l'intero dataset atteso; T07 non richiede accesso ad Altervista.
+
 ## Prossimo passo
 
-Revisionare T03. Non iniziare T07, T08 o altre attività senza una nuova
-autorizzazione esplicita.
+Revisionare T07. Non iniziare T09 senza una nuova autorizzazione esplicita.

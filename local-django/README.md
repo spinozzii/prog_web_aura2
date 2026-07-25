@@ -18,8 +18,10 @@ python manage.py test health_service
 
 Le API protette sono:
 
+- `POST /api/v1/migrations/{migrationId}`;
 - `POST /api/v1/migrations/{migrationId}/batches`;
 - `POST /api/v1/migrations/{migrationId}/finalize`;
+- `POST /api/v1/migrations/{migrationId}/failure`;
 - `GET /api/v1/migrations/{migrationId}`.
 
 Persistono in PostgreSQL tutte le entità definite da
@@ -43,3 +45,18 @@ costituisce una prova PostgreSQL.
 La finalizzazione segue l'ordine completo, ricalcola digest e `datasetId`,
 controlla FK e unicità, richiede una patologia per ogni ricovero e verifica
 ogni progressivo con `MAX(cod) + 1`.
+
+Da T07 `migration_execution` conserva lo stato globale e ogni run di entità
+conserva sequenza, cursori sorgente e indicazione `hasMore`. Lotto e checkpoint
+avanzano atomicamente: Java, dopo un riavvio, può riprendere lo stesso
+`migrationId` dal primo lotto non confermato. Gli stati sono `created`,
+`running`, `interrupted`, `failed` e `completed`; l'errore resta sintetico.
+
+Per verificare una migrazione senza stampare righe:
+
+```text
+python manage.py audit_migration --migration-id <migrationId>
+```
+
+Il comando ricalcola conteggi, digest, `datasetId` e invarianti PostgreSQL e
+restituisce soltanto metadati JSON.
