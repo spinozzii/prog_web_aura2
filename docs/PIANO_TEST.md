@@ -201,3 +201,16 @@ Tempi, digest, checkpoint ed esiti HTTP sono registrati in
 Questo esito soddisfa la parte massiva e di resilienza, ma non chiude ancora i
 criteri di release relativi a installazione pulita, limite di cinque minuti e
 documenti finali.
+
+## 9. Esito osservato per T09
+
+Il candidato offline è stato estratto in una cartella nuova con spazi e
+verificato senza accesso alla rete. Python 3.12.10, Java 23.0.2,
+Tomcat 11.0.24 e PostgreSQL 18.4 hanno completato installazione, migrazioni,
+salute, readiness, 22 righe/22 lotti, rilancio idempotente, audit e cleanup in
+43,571 secondi wall-clock.
+
+Tomcat 9.0.120 ha superato la stessa verticale in 38,822 secondi. Sono passati
+16 casi avversi, runner completo, controlli migrazioni, build Maven e audit
+dell'archivio. I PDF A4 finali sono stati renderizzati e ispezionati pagina per
+pagina. Dettagli, limiti e hash sono in `docs/VERIFICA_T09.md`.

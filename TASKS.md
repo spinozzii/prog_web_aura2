@@ -6,19 +6,6 @@ Nessuna.
 
 ## BACKLOG
 
-- [ ] **T09 - Installazione ripetibile sotto cinque minuti**
-  - configuratore da riga di comando;
-  - dipendenze Python offline;
-  - WAR precompilati per Tomcat 9 e Tomcat 11;
-  - rilevamento runtime e messaggi per i casi avversi;
-  - prova cronometrata da copia pulita.
-
-- [ ] **T10 - Manuale e documento delle scelte**
-  - manuale sintetico per utente generico;
-  - documento di circa una pagina sulle scelte;
-  - generazione e verifica dei PDF;
-  - istruzioni coerenti con la prova pulita.
-
 - [ ] **T11 - Audit finale e pacchetto di consegna**
   - audit statico, test automatici e prova end-to-end;
   - verifica dei cinque minuti;
@@ -27,22 +14,44 @@ Nessuna.
 
 ## IN REVISIONE
 
-- [ ] **T07 - Resilienza e migrazione del dataset massivo reale**
-  - usati in sola lettura dal Progetto 1 `database/schema.sql`,
-    `database/seed_massivo.sql` e `database/README_IMPORTAZIONE.md`;
-  - migrato realmente il dataset di 36.176 righe attraverso
-    `MariaDB → PHP/PDO → servlet Java/Tomcat → Django → PostgreSQL`;
-  - prodotti dump sorgente deterministico, checksum e istruzioni di ripristino;
-  - implementati stato globale, checkpoint persistenti, retry limitati,
-    distinzione recuperabile/definitiva e ripresa con lo stesso `migrationId`;
-  - osservate migrazione completa da PostgreSQL vuoto, interruzione/ripresa,
-    rilancio idempotente e avvio dei WAR Tomcat 11 e Tomcat 9;
-  - verificati timeout remoto, `503` Django temporaneo, dataset cambiato,
-    digest errato e duplicato identico/discordante;
-  - verificati conteggi, digest, PK, FK, univocità, associazioni e progressivi;
-  - runner rigoroso, test Django, migrazioni e `mvn clean package` superati;
-  - evidenze e limiti effettivi registrati in `docs/VERIFICA_T07.md`;
-  - in attesa della revisione Work; T09 non è stata iniziata.
+- [ ] **T09 - Pacchetto offline, installazione sotto cinque minuti e PDF**
+  - creare un pacchetto di consegna candidato che includa sorgenti necessari,
+    configurazioni di esempio, dump/checksum, dipendenze Python offline con
+    hash, WAR precompilati Tomcat 9/11, script e documenti finali;
+  - il computer del docente non deve richiedere Internet, Maven, Composer,
+    Node.js, IDE o compilazione Java;
+  - implementare un configuratore PowerShell non interattivo o guidato che
+    rilevi Python 3.12, Java, Tomcat e PostgreSQL, rifiuti versioni
+    incompatibili e non richieda privilegi amministrativi non necessari;
+  - creare un ambiente virtuale locale e installare Django/psycopg soltanto
+    dalla wheelhouse offline verificata tramite hash;
+  - creare/configurare il database PostgreSQL, applicare le migrazioni,
+    selezionare e distribuire il WAR corretto e produrre configurazioni locali
+    senza salvare segreti nel repository o nell'archivio;
+  - includere un verificatore che controlli salute dei tre componenti,
+    readiness PostgreSQL e una migrazione sintetica, distinguendo chiaramente
+    la verifica rapida dalla migrazione massiva;
+  - preparare istruzioni separate e realistiche per pubblicare il PHP su
+    Altervista, senza effettuare la distribuzione;
+  - eseguire da una copia pulita del pacchetto una prova offline cronometrata:
+    installazione, configurazione e verifica devono concludersi entro cinque
+    minuti; documentare ambiente, versioni, comandi, tempi e problemi;
+  - testare casi avversi: Python/Java/Tomcat/PostgreSQL mancanti o
+    incompatibili, porta occupata, database non raggiungibile, archivio o hash
+    alterato, segreto mancante e assenza di rete;
+  - scrivere un manuale sintetico per utente generico e un documento di circa
+    una pagina sulle scelte progettuali, coerenti soltanto con procedure
+    realmente provate;
+  - generare i due PDF finali usando il workflow PDF previsto e verificarli
+    visivamente pagina per pagina: nessun testo tagliato, sovrapposizione,
+    carattere corrotto o pagina superflua;
+  - verificare che l'archivio non contenga cache, log, `target`, credenziali,
+    runtime temporanei o file estranei e che contenga tutto il necessario;
+  - mantenere runner completo, test, migrazioni e `mvn clean package`;
+  - aggiornare `TASKS.md` e `PROJECT_STATUS.md`, spostare T09 in
+    `IN REVISIONE`, creare un commit e pubblicarlo su `origin/main`;
+  - verificare commit locale/remoto e working tree pulito, quindi fermarsi
+    senza iniziare T11.
 
 ## COMPLETATE
 
@@ -104,6 +113,18 @@ Nessuna.
     entrambi gli adattatori Tomcat;
   - commit locale e GitHub verificati su
     `d86d474a700f168421f00286b0336eeea64aec25`;
+  - revisione Work conclusa senza correzioni bloccanti.
+
+- [x] **T07 - Resilienza e migrazione del dataset massivo reale**
+  - migrate realmente 36.176 righe in 364 lotti attraverso i quattro livelli;
+  - verificati retry, checkpoint, interruzione/ripresa, errori definitivi e
+    rilancio idempotente con entrambi i WAR;
+  - verificati conteggi, digest, PK, FK, unicità, domini e progressivi;
+  - prodotto dump sorgente con SHA-256
+    `65204bc3b87b2e01a8a12f4a228dd93ad93d865348e1595efb901c6766d51d38`;
+  - runner completo, 33 test Django, migrazioni e build dei WAR superati;
+  - commit locale e GitHub verificati su
+    `2c0e52b34c711873fdf92533bff9beec6d3b6878`;
   - revisione Work conclusa senza correzioni bloccanti.
 
 ## BLOCCATE

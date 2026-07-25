@@ -50,14 +50,14 @@ function Assert-Result {
         throw 'La migrazione completa non ha restituito lo stato atteso.'
     }
     if ($Result.datasetId -notmatch '^[0-9a-f]{64}$') {
-        throw 'Il datasetId finale non è un digest SHA-256 valido.'
+        throw 'Il datasetId finale non e un digest SHA-256 valido.'
     }
     if (@($Result.entityOrder).Count -ne $entityOrder.Count -or
         (@($Result.entityOrder) -join ',') -ne ($entityOrder -join ',')) {
-        throw 'L’ordine finale delle entità non coincide con il contratto.'
+        throw "L'ordine finale delle entita non coincide con il contratto."
     }
     if (@($Result.entities).Count -ne $entityOrder.Count) {
-        throw 'Il risultato non contiene tutte le entità.'
+        throw 'Il risultato non contiene tutte le entita.'
     }
 
     $totalRows = 0
@@ -79,14 +79,14 @@ function Assert-Result {
         -not $Result.verification.rowCountMatches -or
         -not $Result.verification.digestMatches -or
         -not $Result.verification.constraintsValid) {
-        throw 'La verifica aggregata non coincide con i risultati per entità.'
+        throw 'La verifica aggregata non coincide con i risultati per entita.'
     }
 }
 
 function Invoke-Migration {
     $bridgeSecret = $env:BRIDGE_API_SECRET
     if ([string]::IsNullOrWhiteSpace($bridgeSecret)) {
-        throw 'Impostare BRIDGE_API_SECRET nell’ambiente senza inserirlo nella riga di comando.'
+        throw "Impostare BRIDGE_API_SECRET nell'ambiente senza inserirlo nella riga di comando."
     }
     $headers = @{ Authorization = "Bearer $bridgeSecret" }
     $body = @{

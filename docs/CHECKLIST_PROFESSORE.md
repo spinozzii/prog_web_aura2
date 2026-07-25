@@ -38,47 +38,47 @@
 
 ## Compatibilità
 
-- [ ] Python 3.12 è supportato.
-- [ ] Django e dipendenze sono disponibili offline.
-- [ ] Esiste un WAR per Tomcat 9/Java 8+.
-- [ ] Esiste un WAR per Tomcat 11/Java 17+.
-- [ ] Il configuratore seleziona l'artefatto corretto.
-- [ ] Maven, Gradle, Composer, Node.js e IDE non sono richiesti.
-- [ ] PostgreSQL viene rilevato e verificato.
+- [x] Python 3.12 è supportato.
+- [x] Django e dipendenze sono disponibili offline.
+- [x] Esiste un WAR per Tomcat 9/Java 8+.
+- [x] Esiste un WAR per Tomcat 11/Java 17+.
+- [x] Il configuratore seleziona l'artefatto corretto.
+- [x] Maven, Gradle, Composer, Node.js e IDE non sono richiesti.
+- [x] PostgreSQL viene rilevato e verificato.
 
 ## Installazione e verifica
 
-- [ ] Tutta la configurazione parte da riga di comando.
-- [ ] La procedura è stata provata da una copia pulita.
-- [ ] Installazione e verifica terminano in cinque minuti o meno.
-- [ ] Il tempo è stato misurato e registrato.
-- [ ] Prerequisiti e versioni ammesse sono espliciti.
-- [ ] I passi sono numerati e facilmente individuabili.
-- [ ] I casi avversi hanno diagnosi e soluzione.
-- [ ] Non viene dato nulla per scontato.
-- [ ] Il comando di verifica prova davvero i tre servizi e il database.
+- [x] Tutta la configurazione parte da riga di comando.
+- [x] La procedura è stata provata da una copia pulita.
+- [x] Installazione e verifica terminano in cinque minuti o meno.
+- [x] Il tempo è stato misurato e registrato.
+- [x] Prerequisiti e versioni ammesse sono espliciti.
+- [x] I passi sono numerati e facilmente individuabili.
+- [x] I casi avversi hanno diagnosi e soluzione.
+- [x] Non viene dato nulla per scontato.
+- [x] Il comando di verifica prova davvero i tre servizi e il database.
 
 ## Documentazione
 
-- [ ] Il manuale è destinato a un utente generico.
-- [ ] Il manuale è sintetico e non è un diario di sviluppo.
-- [ ] Le frasi sono brevi.
-- [ ] Si usano imperativo o infinito, non il futuro.
-- [ ] Lo stesso componente mantiene sempre lo stesso nome.
-- [ ] Il manuale spiega cosa si installa.
-- [ ] Il manuale elenca i prerequisiti.
-- [ ] Il manuale descrive installazione e verifica.
-- [ ] Il manuale spiega cosa fare se qualcosa va male.
-- [ ] Il manuale finale è un PDF leggibile e verificato visivamente.
-- [ ] Il documento delle scelte è di circa una pagina ed è in PDF.
+- [x] Il manuale è destinato a un utente generico.
+- [x] Il manuale è sintetico e non è un diario di sviluppo.
+- [x] Le frasi sono brevi.
+- [x] Si usano imperativo o infinito, non il futuro.
+- [x] Lo stesso componente mantiene sempre lo stesso nome.
+- [x] Il manuale spiega cosa si installa.
+- [x] Il manuale elenca i prerequisiti.
+- [x] Il manuale descrive installazione e verifica.
+- [x] Il manuale spiega cosa fare se qualcosa va male.
+- [x] Il manuale finale è un PDF leggibile e verificato visivamente.
+- [x] Il documento delle scelte è di circa una pagina ed è in PDF.
 
 ## Materiale di consegna
 
-- [ ] È incluso un dump verificabile del database di origine.
-- [ ] Sono inclusi codice, configurazioni di esempio e artefatti.
-- [ ] Cache, log, ambienti virtuali, credenziali e file IDE sono esclusi.
-- [ ] L'archivio viene estratto e verificato in una cartella nuova.
-- [ ] I PDF si aprono e non presentano testo tagliato o illeggibile.
+- [x] È incluso un dump verificabile del database di origine.
+- [x] Sono inclusi codice, configurazioni di esempio e artefatti.
+- [x] Cache, log, ambienti virtuali, credenziali e file IDE sono esclusi.
+- [x] L'archivio viene estratto e verificato in una cartella nuova.
+- [x] I PDF si aprono e non presentano testo tagliato o illeggibile.
 
 ## Email
 
@@ -94,4 +94,3 @@
 - [ ] Nessuna difformità nell'email.
 - [ ] Nessun superamento dei cinque minuti.
 - [ ] Nessuna necessità per il docente di chiedere chiarimenti sul manuale.
-

@@ -41,8 +41,8 @@ pagination è deterministica senza dipendere da offset crescenti.
 
 ### D06 - Django 5.2 LTS
 
-Si usa Django 5.2 LTS su Python 3.12. La patch esatta viene fissata dopo i test
-e distribuita offline.
+Si usa Django 5.2.16 su Python 3.12 con psycopg 3.3.4. Le dipendenze sono
+distribuite come sette wheel Windows x64 con SHA-256.
 
 Motivazione: compatibilità ufficiale con Python 3.12 e supporto LTS. Le
 limitazioni sulle relazioni verso chiavi composte vengono isolate nel livello
@@ -124,13 +124,19 @@ sola lettura e verifica hash e conteggi prima di creare l'archivio richiesto.
 Motivazione: il docente può ripristinare una sorgente esatta senza credenziali
 e senza mantenere nel repository copie SQL aggiuntive non necessarie.
 
+### D16 - Radice immutabile e database di verifica separato
+
+Il candidato viene costruito da allowlist e verificato tramite manifest e
+SHA-256. Il configuratore crea runtime e stato fuori dalla radice estratta e
+usa un database sintetico distinto da quello operativo.
+
+Motivazione: l'integrità dell'archivio deve restare ricontrollabile dopo
+l'installazione e la prova rapida non deve contaminare la destinazione della
+migrazione reale.
+
 ## Decisioni aperte
 
-- sistema operativo esatto da supportare nella prova del docente;
-- percorso e modalità di avvio del Tomcat installato;
-- patch esatta di Django 5.2 e pacchetto PostgreSQL Python;
 - limite dei lotti da adottare sull'eventuale ambiente Altervista;
-- comando unico definitivo di configurazione/avvio/verifica;
 - URL pubblico definitivo del servizio PHP.
 
 ## Modello per nuove decisioni

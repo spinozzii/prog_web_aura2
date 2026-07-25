@@ -28,6 +28,21 @@ header('Content-Type: application/json; charset=utf-8');
 $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $parsedPath = parse_url($requestUri, PHP_URL_PATH);
 $path = is_string($parsedPath) ? (rtrim($parsedPath, '/') ?: '/') : '/';
+$publicRoot = realpath(__DIR__);
+$scriptFilename = realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
+$scriptPath = parse_url((string) ($_SERVER['SCRIPT_NAME'] ?? ''), PHP_URL_PATH);
+if (is_string($publicRoot) && is_string($scriptFilename)
+    && is_string($scriptPath) && strncmp($scriptFilename, $publicRoot, strlen($publicRoot)) === 0) {
+    $relativeScript = str_replace('\\', '/', substr($scriptFilename, strlen($publicRoot)));
+    if ($relativeScript !== '' && strlen($scriptPath) >= strlen($relativeScript)
+        && substr($scriptPath, -strlen($relativeScript)) === $relativeScript) {
+        $basePath = rtrim(substr($scriptPath, 0, -strlen($relativeScript)), '/');
+        if ($basePath !== '' && ($path === $basePath
+            || strncmp($path, $basePath . '/', strlen($basePath) + 1) === 0)) {
+            $path = substr($path, strlen($basePath)) ?: '/';
+        }
+    }
+}
 $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
 if ($method === 'GET' && $path === '/health') {

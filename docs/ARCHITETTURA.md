@@ -263,7 +263,7 @@ indica che la sorgente non è esaurita.
 
 ## 8. Installazione
 
-Il pacchetto finale dovrà contenere:
+Il candidato offline contiene:
 
 - codice sorgente dei tre componenti;
 - dipendenze Python offline con hash;
@@ -273,16 +273,22 @@ Il pacchetto finale dovrà contenere:
 - configuratore e verificatore da riga di comando;
 - manuale e documento delle scelte in PDF.
 
-Il configuratore:
+Il configuratore PowerShell:
 
 1. rileva Python, Java, Tomcat e PostgreSQL;
 2. rifiuta combinazioni incompatibili con un messaggio chiaro;
 3. crea un ambiente Python locale;
 4. installa le dipendenze senza rete;
-5. prepara database e configurazioni;
+5. prepara un database operativo e uno sintetico separati, applica le
+   migrazioni e produce lo stato locale senza segreti;
 6. seleziona e distribuisce il WAR corretto;
 7. avvia o guida l'avvio dei servizi;
-8. esegue salute/readiness e una verifica sintetica.
+8. esegue salute/readiness, una verifica sintetica idempotente e la pulizia
+   verificata dei processi.
+
+L'ambiente virtuale e il `CATALINA_BASE` sono creati in una directory sorella
+esterna alla radice immutabile del pacchetto. Tomcat 9 seleziona il WAR
+`javax`, Tomcat 11 il WAR `jakarta`; Tomcat 10 viene rifiutato.
 
 ## 9. Osservabilità
 

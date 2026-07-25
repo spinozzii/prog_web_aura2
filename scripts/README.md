@@ -49,3 +49,13 @@ con stdout e stderr distinti e arrestato usando il PID verificato.
 `database/README_SOURCE_DUMP.md`; non modifica il Progetto 1 e rifiuta
 checksum o conteggi inattesi. Gli esiti reali T07 sono in
 `docs/VERIFICA_T07.md`.
+
+T09 aggiunge:
+
+- `build-offline-package.ps1`, builder allowlist del candidato con manifest,
+  checksum, ZIP deterministico, estrazione e verifica;
+- `generate-delivery-pdfs.py`, generatore ReportLab del manuale e delle
+  scelte progettuali.
+
+Il configuratore operativo è consegnato in `delivery/installer`; gli esiti
+cronometrati e le verifiche PDF sono in `docs/VERIFICA_T09.md`.

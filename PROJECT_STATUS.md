@@ -5,9 +5,9 @@
 La scelta B è approvata: migrazione tramite servizio PHP remoto, servlet Java
 intermedia e servizio Django locale verso PostgreSQL.
 
-T00, T01, T01.1, T01.2, T02.1, T02.2 e T03 sono completate. T07, relativa
-alla resilienza e al dataset massivo, è in revisione. Non ci sono attività
-autorizzate.
+T00, T01, T01.1, T01.2, T02.1, T02.2, T03 e T07 sono completate. T09 ha
+prodotto il candidato offline ed è in revisione. Non ci sono attività
+autorizzate; T11 resta nel backlog.
 
 ## Fatti e decisioni verificati
 
@@ -171,6 +171,55 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
 - Procedura, tempi, lotti, digest, fault injection e limiti osservati sono
   documentati in `docs/VERIFICA_T07.md`.
 
+## Esito T09
+
+- Il candidato `dist/drive-aura-51-offline.zip` misura 12.833.709 byte e ha
+  SHA-256
+  `84a0f0c0bf7d4509b4b19d4da84f859b3f4efc03008e882f4294af05d0af77fd`.
+  Il manifest verifica 108 file payload; lo ZIP contiene 110 file totali sotto
+  un'unica radice.
+- Il pacchetto include 78 sorgenti PHP/Java/Django, schema e fixture condivisi,
+  7 wheel Windows x64 con hash, i due WAR precompilati, dump/checksum, tre
+  configurazioni di esempio, configuratore/verificatore, strumenti e due PDF.
+  L'audit non ha trovato cache, log, `target`, runtime, ambienti virtuali,
+  credenziali, file IDE o percorsi estranei.
+- Il configuratore Windows PowerShell 5.1 rileva Python 3.12 x64, Java,
+  Tomcat 9/11 e client/server PostgreSQL 14-18. Crea runtime e
+  `CATALINA_BASE` fuori dalla radice immutabile, installa con
+  `--no-index --require-hashes` ignorando la configurazione pip esterna,
+  trasmette la password libpq soltanto tramite `PGPASSWORD` temporaneo e non
+  persiste segreti.
+- La prova dall'archivio finale, estratto in un percorso con spazi e con rete
+  resa inutilizzabile, ha usato Python 3.12.10, Java 23.0.2,
+  Tomcat 11.0.24 e PostgreSQL 18.4/SCRAM. Ha completato configurazione,
+  migrazioni, salute, readiness, 22 righe/22 lotti, rilancio idempotente,
+  audit e cleanup in 43,290 s interni e 43,571 s wall-clock.
+- Il database operativo è rimasto a zero righe; il database di verifica
+  separato contiene le 22 righe attese. Lo stato non contiene segreti,
+  `processes.json` è stato rimosso e le quattro porte sono state liberate.
+  Tomcat 9.0.120 ha superato la stessa prova con il WAR `javax` in 38,822 s;
+  il rilancio Tomcat 11 sulla stessa installazione è terminato in 15,897 s.
+- Sono passati 16 casi avversi: runtime mancanti/incompatibili, PostgreSQL non
+  raggiungibile, porta occupata, segreto mancante, directory estranea,
+  wheel/hash alterati, archivio alterato e assenza di rete. Password SCRAM
+  errata/corretta, percorsi con spazi e parser PowerShell 5.1 sono stati
+  verificati realmente.
+- Il runner rigoroso è passato con contratti Java/PHP, routing PHP dalla
+  sottocartella pubblicata e 33 test Django. Senza runtime fallisce; con
+  `-AllowPartial` riepiloga gli skip. `manage.py check`,
+  `makemigrations --check --dry-run` e `migrate --check` sono passati su
+  PostgreSQL reale.
+- `mvn clean package` è passato in 5,096 s e ha prodotto entrambi i WAR. I 15
+  entry di ciascun WAR e i 47 entry del JAR core coincidono con gli artefatti
+  precompilati al netto dei timestamp ZIP.
+- Il manuale A4 misura 104.536 byte e occupa 3 pagine; le scelte progettuali
+  misurano 98.110 byte e occupano 1 pagina. Tutte le pagine sono state
+  renderizzate a 144 dpi e ispezionate; non restano testo tagliato,
+  sovrapposizioni, caratteri corrotti, pagine vuote o superflue.
+- Procedura, ambiente, tempi, casi avversi, hash e limiti sono in
+  `docs/VERIFICA_T09.md`. Le istruzioni Altervista sono separate e non è stata
+  eseguita alcuna distribuzione remota.
+
 ## Limiti residui
 
 - PHP, Django, MariaDB, PostgreSQL e Tomcat usati nel collaudo erano runtime
@@ -178,8 +227,13 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
 - La prova massiva è locale: non è una distribuzione Altervista e non usa
   credenziali remote. Il dataset del Progetto 1 è sintetico ed è stato
   consultato soltanto come sorgente in sola lettura.
-- Installatore e dipendenze offline (T09), documenti PDF (T10) e audit finale
-  di consegna (T11) restano attività di backlog e non sono stati iniziati.
+- Nella prova offline la scheda di rete non è stata disabilitata fisicamente:
+  proxy non raggiungibili, configurazione pip ostile e `--no-index` hanno
+  impedito l'uso della rete da parte della procedura.
+- La verifica rapida T09 usa una sorgente contrattuale loopback e non sostituisce
+  il collaudo PHP/PDO massivo già osservato in T07.
+- T11, audit finale ed email di consegna, resta nel backlog e non è stato
+  iniziato.
 
 ## Revisione Work T02.2
 
@@ -210,6 +264,23 @@ T03 è approvata senza correzioni bloccanti. Nel Progetto 1 sono disponibili,
 in sola lettura, `database/schema.sql` e `database/seed_massivo.sql` con
 l'intero dataset atteso; T07 non richiede accesso ad Altervista.
 
+## Revisione Work T07
+
+Il 25 luglio 2026 Work ha verificato:
+
+- commit locale, `origin/main` e GitHub coincidenti su
+  `2c0e52b34c711873fdf92533bff9beec6d3b6878`;
+- archivio sorgente da 407.251 byte con SHA-256
+  `65204bc3b87b2e01a8a12f4a228dd93ad93d865348e1595efb901c6766d51d38`
+  e contenuto coerente con il manifest;
+- implementazione di checkpoint, resume e retry limitati;
+- runner completo con 33 test Django e contratti PHP/Java;
+- `mvn clean package` e produzione dei due WAR;
+- assenza di cache, credenziali e artefatti temporanei tracciati.
+
+T07 è approvata senza correzioni bloccanti.
+
 ## Prossimo passo
 
-Revisionare T07. Non iniziare T09 senza una nuova autorizzazione esplicita.
+Attendere la revisione Work di T09. Non avviare T11 senza una nuova
+autorizzazione esplicita in `TASKS.md`.

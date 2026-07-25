@@ -49,7 +49,7 @@ Invoke-OrSkip 'Java core isolated contracts' {
         & $java.Source -cp $outputDirectory it.unibg.driveaura.bridge.core.MigrationOrchestratorTest `
             (Join-Path $projectRoot 'shared/entity-schema.json') `
             (Join-Path $projectRoot 'tests/fixtures/t03-dataset.json')
-        if ($LASTEXITCODE -ne 0) { throw 'Test Java dell’orchestratore ha restituito un errore.' }
+        if ($LASTEXITCODE -ne 0) { throw "Test Java dell'orchestratore ha restituito un errore." }
     } finally {
         Remove-Item -Recurse -Force -LiteralPath $outputDirectory -ErrorAction SilentlyContinue
     }
@@ -62,7 +62,7 @@ Invoke-OrSkip 'PHP isolated and HTTP contracts' {
     & $php.Source (Join-Path $projectRoot 'remote-php/tests/PatologiaCanonicalizerTest.php')
     if ($LASTEXITCODE -ne 0) { throw 'Il test PHP di canonicalizzazione ha restituito un errore.' }
     & $php.Source (Join-Path $projectRoot 'remote-php/tests/PatologiaApiTest.php')
-    if ($LASTEXITCODE -ne 0) { throw 'Il test PHP dell’API Patologia ha restituito un errore.' }
+    if ($LASTEXITCODE -ne 0) { throw "Il test PHP dell'API Patologia ha restituito un errore." }
 
     $port = Get-FreePort
     $documentRoot = Join-Path $projectRoot 'remote-php/public'
@@ -85,6 +85,35 @@ Invoke-OrSkip 'PHP isolated and HTTP contracts' {
         if ($body.apiVersion -ne '1.0' -or $body.service -ne 'remote-php' -or $body.status -ne 'ok') { throw 'Corpo salute PHP non valido.' }
     } finally {
         if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+    }
+
+    $prefixedPort = Get-FreePort
+    $prefixedArguments = "-S 127.0.0.1:$prefixedPort -t `"$projectRoot`""
+    $prefixedProcess = Start-Process -FilePath $php.Source -ArgumentList $prefixedArguments -PassThru -WindowStyle Hidden
+    try {
+        $prefixedResponse = $null
+        foreach ($attempt in 1..20) {
+            try {
+                $prefixedResponse = Invoke-WebRequest -UseBasicParsing `
+                    -Uri "http://127.0.0.1:$prefixedPort/remote-php/public/health" `
+                    -TimeoutSec 1
+                break
+            } catch {
+                if ($attempt -eq 20) { throw }
+                Start-Sleep -Milliseconds 150
+            }
+        }
+        if ($prefixedResponse.StatusCode -ne 200) {
+            throw "HTTP PHP con prefisso inatteso: $($prefixedResponse.StatusCode)."
+        }
+        $prefixedBody = $prefixedResponse.Content | ConvertFrom-Json
+        if ($prefixedBody.service -ne 'remote-php' -or $prefixedBody.status -ne 'ok') {
+            throw 'Routing PHP in sottocartella non valido.'
+        }
+    } finally {
+        if ($prefixedProcess -and -not $prefixedProcess.HasExited) {
+            Stop-Process -Id $prefixedProcess.Id -Force
+        }
     }
 }
 

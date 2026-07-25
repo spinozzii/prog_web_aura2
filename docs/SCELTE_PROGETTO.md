@@ -1,45 +1,54 @@
-# Scelte progettuali
+# Drive Aura 51 - Scelte progettuali
 
-> Stato: bozza iniziale. Aggiornare dopo l'implementazione e produrre un PDF di
-> circa una pagina.
+Il progetto adotta il caso B: migrazione completa del database del Servizio
+Sanitario da MariaDB/MySQL remoto a PostgreSQL locale. Il percorso imposto
+rimane `PHP/PDO -> servlet Java/Tomcat -> Django -> PostgreSQL`; la servlet
+coordina chiamate HTTP e non accede ai database.
 
-## Obiettivo
+## Contratto e integrità
 
-Il progetto migra il database del Servizio Sanitario usato nel Progetto 1 da
-MySQL/MariaDB su Altervista a PostgreSQL locale. Il trasferimento attraversa
-un web-service PHP remoto, una servlet Java intermedia e un web-service Django
-locale.
+Le otto entità condividono uno schema dichiarativo con ordine, campi, tipi,
+chiavi semplici e composte, relazioni e vincoli. Il PHP esporta una sola
+entità per richiesta, con query PDO preparate, whitelist e paginazione keyset.
+I cursori sono opachi, firmati HMAC e legati a dataset ed entità. Ogni record
+ha una rappresentazione JSON canonica UTF-8; conteggi e SHA-256 permettono di
+rilevare dati mancanti, alterati o cambiati durante l'esportazione.
 
-## Scelte principali
+## Orchestrazione e persistenza
 
-È stato scelto PostgreSQL perché il modello contiene chiavi composte, chiavi
-esterne, vincoli univoci e una relazione molti-a-molti. La struttura
-relazionale può quindi essere preservata senza trasformazioni documentali.
+Il core Java compatibile con Java 8 contiene trasporto, validazione e
+orchestrazione. Due adattatori sottili producono WAR distinti: `javax.servlet`
+per Tomcat 9 e `jakarta.servlet` per Tomcat 11. L'ordine delle dipendenze non
+arriva dall'input. Timeout e retry sono limitati alle operazioni idempotenti e
+agli errori temporanei; autenticazione, schema, dataset e digest non validi
+sono fallimenti definitivi.
 
-I dati vengono esportati in JSON a lotti ordinati per chiave primaria. Il
-manifest iniziale dichiara identificativo del dataset, conteggi e digest.
-Questa soluzione evita risposte troppo grandi e permette di rilevare
-trasferimenti incompleti o dati cambiati durante l'esecuzione.
+Django 5.2.16 e psycopg 3.3.4 applicano ogni lotto in una transazione
+PostgreSQL. Il registro usa migrazione, entità e sequenza; lo stesso digest è
+un rilancio valido, un contenuto diverso è un conflitto. Checkpoint e dati
+avanzano atomicamente. Dopo un riavvio la servlet legge lo stato autorevole da
+PostgreSQL e riprende dal cursore confermato. La finalizzazione verifica tutte
+le entità, i digest, le FK, l'unicità del direttore, le associazioni e i
+progressivi prima dello stato `completed`.
 
-La servlet non accede ai database. Coordina le chiamate HTTP, mantiene lo stato
-della migrazione e inoltra i lotti. La logica Java è condivisa, mentre due
-adattatori producono artefatti compatibili con Tomcat 9 e Tomcat 11.
+## Installazione offline
 
-Il servizio Django valida ogni lotto e lo inserisce in una transazione
-PostgreSQL. L'identificativo della migrazione, la sequenza e il digest rendono
-il trasferimento ripetibile senza duplicazioni. La migrazione viene dichiarata
-completa soltanto dopo il confronto di conteggi, digest e vincoli.
-
-## Installazione
-
-La consegna include dipendenze Python offline e WAR precompilati. Un
-configuratore da riga di comando rileva le versioni presenti, seleziona
-l'artefatto corretto e avvia i controlli. La procedura non richiede IDE,
-compilatori aggiuntivi o download durante la verifica.
+La consegna non richiede Internet, Maven, Composer, Node.js, IDE o
+compilazione Java. Include due WAR precompilati, sette wheel Windows x64 con
+versioni e hash, dump sorgente verificabile e configurazioni senza segreti. Il
+configuratore PowerShell accetta Python 3.12 x64, PostgreSQL 14-18 e soltanto
+Tomcat 9 o 11 con Java compatibile. Crea un ambiente virtuale, installa con
+`pip --no-index --require-hashes`, prepara un database operativo e un database
+separato per la prova sintetica e usa un `CATALINA_BASE` locale, senza
+modificare il Tomcat installato. I segreti restano nell'ambiente dei processi.
 
 ## Verifica
 
-Il collaudo confronta tutte le entità, comprese chiavi composte, sottoinsiemi
-delle patologie, associazioni e progressivi. Un comando finale espone lo stato
-dei tre servizi e l'esito dell'ultima migrazione.
-
+Il controllo rapido offline usa la fixture condivisa come sorgente
+contrattuale loopback e trasferisce 22 righe in 22 lotti attraverso Tomcat,
+Django e PostgreSQL reali; controlla salute, readiness, digest, vincoli e
+rilancio idempotente. Questa prova non viene presentata come collaudo PHP: la
+verticale PHP/PDO e la migrazione massiva di 36.176 righe sono state osservate
+separatamente con entrambi i WAR. Il pacchetto finale è costruito da allowlist,
+ha checksum complessivo e rifiuta cache, log, runtime, credenziali e artefatti
+di sviluppo.

@@ -17,6 +17,7 @@
 - Mitigazione: pacchetto offline con versioni e hash, ambiente virtuale locale,
   nessuna modifica globale.
 - Segnale di chiusura: installazione pulita senza rete.
+- Stato: chiuso in T09 con wheelhouse verificata e prova pulita in 43,571 s.
 
 ## R03 - Chiavi composte in Django
 
@@ -54,6 +55,7 @@
 - Mitigazione: artefatti precompilati, dipendenze offline, configuratore unico,
   prova cronometrata frequente.
 - Segnale di chiusura: due prove pulite consecutive entro il limite.
+- Stato: chiuso in T09 con Tomcat 11 in 43,571 s e Tomcat 9 in 38,822 s.
 
 ## R07 - Migrazione parziale dichiarata riuscita
 
@@ -81,6 +83,7 @@
 - Mitigazione: manuale breve per utente generico, passi numerati, casi avversi,
   prova da archivio pulito.
 - Segnale di chiusura: esecuzione riuscita seguendo solo il PDF.
+- Stato: chiuso in T09; procedura provata e 3 pagine renderizzate e ispezionate.
 
 ## R10 - Scope eccessivo
 
@@ -91,4 +94,3 @@
 - Mitigazione: TASKS con una sola attività autorizzata e revisioni per
   traguardi.
 - Segnale di chiusura: ogni file consegnato è riconducibile a un requisito.
-

@@ -25,11 +25,10 @@ consegnato.
 ## Stato
 
 T07 ha verificato la verticale completa sul dataset massivo di 36.176 righe.
-La migrazione reale da MariaDB a PostgreSQL ha attraversato PHP/PDO, entrambi
-gli adattatori Tomcat e Django, con 364 lotti, digest coincidenti, controlli
-SQL, rilancio idempotente e ripresa dopo interruzione. Il pacchetto sorgente
-con checksum è in `database`; l'attività resta soggetta a revisione e lo stato
-vincolante è sempre in `TASKS.md`.
+T09 ha prodotto il candidato offline con sorgenti, wheelhouse, WAR, dump,
+configuratore e PDF. La prova da ZIP pulito ha completato installazione,
+configurazione e verifica in 43,571 secondi senza usare Internet. Lo stato
+vincolante resta sempre in `TASKS.md`.
 
 ## Origine dei dati
 
@@ -64,6 +63,7 @@ Altervista avverrà solo in una fase esplicitamente autorizzata.
 - `docs/VERIFICA_T02_2.md`: procedura ed esito osservato della prima verticale;
 - `docs/VERIFICA_T03.md`: procedura ed esito della verticale completa;
 - `docs/VERIFICA_T07.md`: migrazione massiva e prove di resilienza osservate;
+- `docs/VERIFICA_T09.md`: pacchetto offline, prova pulita, PDF e casi avversi;
 - `docs/RISCHI.md`: rischi e contromisure.
 
 ## Avvio del lavoro
