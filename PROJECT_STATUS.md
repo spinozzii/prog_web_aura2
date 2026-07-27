@@ -5,9 +5,9 @@
 La scelta B è approvata: migrazione tramite servizio PHP remoto, servlet Java
 intermedia e servizio Django locale verso PostgreSQL.
 
-T00, T01, T01.1, T01.2, T02.1, T02.2, T03 e T07 sono completate. T09 ha
-prodotto il candidato offline ed è in revisione. Non ci sono attività
-autorizzate; T11 resta nel backlog.
+T00, T01, T01.1, T01.2, T02.1, T02.2, T03 e T07 sono completate. T09 e
+T09.1 sono in revisione. Non ci sono attività autorizzate; T11 resta nel
+backlog.
 
 ## Fatti e decisioni verificati
 
@@ -173,9 +173,9 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
 
 ## Esito T09
 
-- Il candidato `dist/drive-aura-51-offline.zip` misura 12.833.709 byte e ha
+- Il candidato `dist/drive-aura-51-offline.zip` misura 12.833.734 byte e ha
   SHA-256
-  `84a0f0c0bf7d4509b4b19d4da84f859b3f4efc03008e882f4294af05d0af77fd`.
+  `8008964dfbe07c8158194e4923e3877fcb1c544f8f079174f8d14e029d7a6eae`.
   Il manifest verifica 108 file payload; lo ZIP contiene 110 file totali sotto
   un'unica radice.
 - Il pacchetto include 78 sorgenti PHP/Java/Django, schema e fixture condivisi,
@@ -212,13 +212,35 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
 - `mvn clean package` è passato in 5,096 s e ha prodotto entrambi i WAR. I 15
   entry di ciascun WAR e i 47 entry del JAR core coincidono con gli artefatti
   precompilati al netto dei timestamp ZIP.
-- Il manuale A4 misura 104.536 byte e occupa 3 pagine; le scelte progettuali
-  misurano 98.110 byte e occupano 1 pagina. Tutte le pagine sono state
+- Il manuale A4 misura 104.563 byte, ha SHA-256
+  `38a63b806b1271fdf530d574ecbc32b268dad6af3b12b151acf63df9dc3d4fc7`
+  e occupa 3 pagine; le scelte progettuali misurano 98.110 byte e occupano
+  1 pagina. Tutte le pagine sono state
   renderizzate a 144 dpi e ispezionate; non restano testo tagliato,
   sovrapposizioni, caratteri corrotti, pagine vuote o superflue.
 - Procedura, ambiente, tempi, casi avversi, hash e limiti sono in
   `docs/VERIFICA_T09.md`. Le istruzioni Altervista sono separate e non è stata
   eseguita alcuna distribuzione remota.
+
+## Esito T09.1
+
+- Il manuale sorgente e il PDF riportano ora i due tempi definitivi della
+  prova Tomcat 11: 43,290 s misurati dal configuratore e 43,571 s wall-clock.
+  Il valore non supportato è assente dal manuale; il tempo Tomcat 9 resta
+  invariato a 38,822 s.
+- `manuale-drive-aura-51.pdf` misura 104.563 byte, ha SHA-256
+  `38a63b806b1271fdf530d574ecbc32b268dad6af3b12b151acf63df9dc3d4fc7`
+  e rimane un PDF A4 di tre pagine. Tutte le pagine sono state renderizzate a
+  144 dpi e ispezionate: nessun taglio, sovrapposizione, carattere corrotto,
+  margine irregolare o pagina superflua.
+- Il candidato ricostruito misura 12.833.734 byte e ha SHA-256
+  `8008964dfbe07c8158194e4923e3877fcb1c544f8f079174f8d14e029d7a6eae`.
+  Sidecar, manifest e hash interni coincidono; il PDF incluso nello ZIP ha lo
+  stesso hash dell'originale in `output/pdf`.
+- L'audit dell'archivio ha verificato 108 file payload e 110 entry totali
+  sotto un'unica radice, senza duplicati, percorsi pericolosi, cache, log,
+  `target`, runtime, ambienti virtuali o credenziali. Nessun codice
+  applicativo è stato modificato e T11 non è stato iniziato.
 
 ## Limiti residui
 
@@ -282,5 +304,5 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T09. Non avviare T11 senza una nuova
+Attendere la revisione Work di T09.1. Non avviare T11 senza una nuova
 autorizzazione esplicita in `TASKS.md`.

@@ -3,9 +3,9 @@
 ## Candidato verificato
 
 - archivio: `dist/drive-aura-51-offline.zip`;
-- dimensione: 12.833.709 byte;
+- dimensione: 12.833.734 byte;
 - SHA-256:
-  `84a0f0c0bf7d4509b4b19d4da84f859b3f4efc03008e882f4294af05d0af77fd`;
+  `8008964dfbe07c8158194e4923e3877fcb1c544f8f079174f8d14e029d7a6eae`;
 - payload dichiarato: 108 file;
 - contenuto principale: 78 sorgenti, 7 wheel, 2 WAR, dump sorgente,
   configuratore/verificatore, 3 configurazioni di esempio e 2 PDF.
@@ -100,14 +100,15 @@ versione supportata.
 
 ## PDF
 
-- `manuale-drive-aura-51.pdf`: A4, 3 pagine, 104.536 byte;
+- `manuale-drive-aura-51.pdf`: A4, 3 pagine, 104.563 byte, SHA-256
+  `38a63b806b1271fdf530d574ecbc32b268dad6af3b12b151acf63df9dc3d4fc7`;
 - `scelte-progettuali-drive-aura-51.pdf`: A4, 1 pagina, 98.110 byte.
 
 Tutte le pagine sono state renderizzate a 144 dpi e ispezionate. La prima
 versione del manuale produceva una quarta pagina con un solo punto elenco:
 il contenuto è stato ricomposto e la pagina superflua eliminata. La verifica
 finale non ha rilevato testo tagliato, sovrapposizioni, caratteri corrotti,
-pagine vuote o margini irregolari. L'estrazione testuale ha confermato 7.769 e
+pagine vuote o margini irregolari. L'estrazione testuale ha confermato 7.824 e
 2.926 caratteri senza caratteri sostitutivi Unicode.
 
 ## Limiti

@@ -14,6 +14,24 @@ Nessuna.
 
 ## IN REVISIONE
 
+- [ ] **T09.1 - Allineamento tempo del manuale e rigenerazione pacchetto**
+  - correggere `docs/MANUALE_INSTALLAZIONE.md`: la prova definitiva Tomcat 11
+    è durata 43,290 secondi interni e 43,571 secondi wall-clock, come
+    documentato in `docs/VERIFICA_T09.md` e `PROJECT_STATUS.md`; rimuovere il
+    valore non supportato di 43,642 secondi;
+  - cercare e correggere ogni altra occorrenza incoerente dello stesso dato,
+    senza modificare il tempo verificato di Tomcat 9;
+  - rigenerare il manuale PDF usando la skill `pdf:pdf` e renderizzare
+    nuovamente tutte le pagine per la verifica visiva;
+  - ricostruire `dist/drive-aura-51-offline.zip`, aggiornare checksum,
+    dimensione e tutti i riferimenti documentali al nuovo archivio;
+  - rieseguire il controllo completo del contenuto e degli hash, verificando
+    che il PDF aggiornato sia quello incluso nello ZIP;
+  - non modificare codice applicativo e non avviare T11;
+  - aggiornare `TASKS.md` e `PROJECT_STATUS.md`, spostare T09.1 in
+    `IN REVISIONE`, creare un commit e pubblicarlo su `origin/main`;
+  - verificare commit locale/remoto e working tree pulito prima di fermarsi.
+
 - [ ] **T09 - Pacchetto offline, installazione sotto cinque minuti e PDF**
   - creare un pacchetto di consegna candidato che includa sorgenti necessari,
     configurazioni di esempio, dump/checksum, dipendenze Python offline con

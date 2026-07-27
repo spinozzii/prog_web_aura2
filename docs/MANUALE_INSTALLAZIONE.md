@@ -104,8 +104,9 @@ PASS: configurazione completata in ... secondi.
 La prova pulita del 25 luglio 2026 ha usato Python 3.12.10 x64, Java 23.0.2,
 Tomcat 11.0.24 e PostgreSQL 18.4 con autenticazione SCRAM. Con rete resa
 indisponibile e pacchetto estratto in un percorso con spazi, configurazione e
-verifica sono terminate in 43,642 secondi. La stessa prova con Tomcat 9.0.120
-è terminata in 38,822 secondi.
+verifica sono terminate in 43,290 secondi misurati dal configuratore e 43,571
+secondi wall-clock. La stessa prova con Tomcat 9.0.120 è terminata in 38,822
+secondi.
 
 ## 5. Cosa verifica il comando
 
