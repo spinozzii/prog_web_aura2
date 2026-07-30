@@ -1,40 +1,45 @@
 # Checklist del docente
 
+Stato verificato nell'audit T11 del 30 luglio 2026. Le caselle non selezionate
+sono operazioni proprie dell'invio dell'email, che non è stato eseguito.
+
 ## Scelta e architettura
 
-- [ ] La consegna dichiara esplicitamente il caso B.
-- [ ] Il servizio remoto è PHP sul sito del Progetto 1.
-- [ ] Il servizio locale è Python/Django.
-- [ ] Lo strato intermedio è una servlet Java.
-- [ ] Il percorso reale dei dati è PHP → servlet → Django → PostgreSQL.
-- [ ] La servlet non accede direttamente ai database.
+- [x] La consegna dichiara esplicitamente il caso B.
+- [ ] Il componente remoto PHP è predisposto per il sito del Progetto 1, ma
+      la distribuzione Altervista non fa parte del collaudo autorizzato e non
+      è stata verificata.
+- [x] Il servizio locale è Python/Django.
+- [x] Lo strato intermedio è una servlet Java.
+- [x] Il percorso reale dei dati è PHP → servlet → Django → PostgreSQL.
+- [x] La servlet non accede direttamente ai database.
 
 ## Migrazione
 
-- [ ] Tutte le otto entità previste vengono migrate.
-- [ ] Il dataset massivo completo viene trasferito.
-- [ ] Conteggi sorgente e destinazione coincidono.
-- [ ] Digest sorgente e destinazione coincidono.
-- [ ] Chiavi primarie semplici e composte sono preservate.
-- [ ] Non esistono righe orfane.
-- [ ] Il direttore sanitario resta obbligatorio e univoco.
-- [ ] Ogni Ricovero mantiene cittadino, ospedale e patologie.
-- [ ] I sottoinsiemi cronica e mortale restano indipendenti.
-- [ ] I progressivi valgono `MAX(cod) + 1`.
-- [ ] Un rilancio non crea duplicati.
-- [ ] Un errore intermedio non viene dichiarato come successo.
+- [x] Tutte le otto entità previste vengono migrate.
+- [x] Il dataset massivo completo viene trasferito.
+- [x] Conteggi sorgente e destinazione coincidono.
+- [x] Digest sorgente e destinazione coincidono.
+- [x] Chiavi primarie semplici e composte sono preservate.
+- [x] Non esistono righe orfane.
+- [x] Il direttore sanitario resta obbligatorio e univoco.
+- [x] Ogni Ricovero mantiene cittadino, ospedale e patologie.
+- [x] I sottoinsiemi cronica e mortale restano indipendenti.
+- [x] I progressivi valgono `MAX(cod) + 1`.
+- [x] Un rilancio non crea duplicati.
+- [x] Un errore intermedio non viene dichiarato come successo.
 
 ## Codice
 
-- [ ] Tutto il codice sorgente è incluso.
-- [ ] Le scelte non ovvie sono commentate.
-- [ ] Non ci sono credenziali o token reali.
-- [ ] Non ci sono dipendenze non dichiarate.
-- [ ] Le query sono preparate.
-- [ ] Entità e campi sono in whitelist.
-- [ ] Trasporto, validazione, orchestrazione e persistenza sono separati.
-- [ ] Gli errori non mostrano stack trace, query o percorsi.
-- [ ] I test automatici sono inclusi ed eseguibili.
+- [x] Tutto il codice sorgente è incluso.
+- [x] Le scelte non ovvie sono commentate.
+- [x] Non ci sono credenziali o token reali.
+- [x] Non ci sono dipendenze non dichiarate.
+- [x] Le query sono preparate.
+- [x] Entità e campi sono in whitelist.
+- [x] Trasporto, validazione, orchestrazione e persistenza sono separati.
+- [x] Gli errori HTTP non mostrano stack trace, query o percorsi.
+- [x] I test automatici sono inclusi ed eseguibili.
 
 ## Compatibilità
 
@@ -82,15 +87,16 @@
 
 ## Email
 
-- [ ] Oggetto con prefisso `[PW26]`.
-- [ ] Oggetto con nome del gruppo.
-- [ ] Oggetto con indicazione del secondo progetto.
-- [ ] Corpo con dichiarazione della scelta B.
-- [ ] Tutti i membri del gruppo in CC.
-- [ ] Allegati o collegamenti sono accessibili.
+- [x] La bozza usa un oggetto con prefisso `[PW26]`.
+- [x] La bozza usa il nome del gruppo `Drive Aura 51`.
+- [x] La bozza indica il secondo progetto.
+- [x] La bozza dichiara la scelta B nel corpo.
+- [ ] All'invio, sostituire i segnaposto e inserire tutti i membri in CC.
+- [ ] All'invio, verificare che ZIP e checksum allegati siano accessibili e
+      che i due PDF contenuti nello ZIP si aprano.
 
 ## Penalità da evitare
 
-- [ ] Nessuna difformità nell'email.
-- [ ] Nessun superamento dei cinque minuti.
-- [ ] Nessuna necessità per il docente di chiedere chiarimenti sul manuale.
+- [ ] Ricontrollare destinatari, CC e allegati immediatamente prima dell'invio.
+- [x] Nessun superamento dei cinque minuti nelle prove pulite finali.
+- [x] Il manuale contiene prerequisiti, passi numerati, verifica e diagnosi.

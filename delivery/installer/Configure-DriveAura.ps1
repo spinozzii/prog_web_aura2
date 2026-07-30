@@ -14,6 +14,7 @@ param(
     [int]$TomcatPort = 8080,
     [int]$TomcatShutdownPort = 8005,
     [int]$SyntheticRemotePort = 8081,
+    [ValidateRange(60, 240)][int]$VerificationTimeoutSeconds = 180,
     [switch]$SkipVerification
 )
 
@@ -21,6 +22,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 Import-Module (Join-Path $PSScriptRoot 'DriveAura.Common.psm1') -Force
 
+Repair-DriveAuraPathEnvironment | Out-Null
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $packageRoot = (Resolve-Path -LiteralPath (Split-Path -Parent $PSScriptRoot)).Path
 if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
@@ -229,6 +231,10 @@ if ($null -eq $httpConnector) {
 }
 $httpConnector.SetAttribute('port', "$TomcatPort")
 $httpConnector.SetAttribute('address', '127.0.0.1')
+$httpConnector.SetAttribute(
+    'protocol',
+    'org.apache.coyote.http11.Http11Nio2Protocol'
+)
 $serverXml.Save($serverXmlPath)
 
 $warName = if ($tomcat.Major -eq 9) {
@@ -286,7 +292,9 @@ if (-not $SkipVerification) {
     $verificationState = $state.PSObject.Copy()
     $verificationState.postgresDatabase = $VerificationDatabase
     Save-DriveAuraState -State $verificationState -Path $verificationStatePath
-    & (Join-Path $PSScriptRoot 'Verify-DriveAura.ps1') -StatePath $verificationStatePath
+    & (Join-Path $PSScriptRoot 'Verify-DriveAura.ps1') `
+        -StatePath $verificationStatePath `
+        -TimeoutSeconds $VerificationTimeoutSeconds
 }
 
 $timer.Stop()

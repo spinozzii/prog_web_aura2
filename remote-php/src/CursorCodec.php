@@ -58,6 +58,23 @@ final class CursorCodec
     /** @return array{entity: string, datasetId: string, after: list<string|int>} */
     public function decode(string $cursor): array
     {
+        return $this->decodePayload($cursor, false);
+    }
+
+    /**
+     * Decode an already authenticated, persisted checkpoint. Its HMAC and
+     * dataset binding remain mandatory, while expiry does not prevent resume.
+     *
+     * @return array{entity: string, datasetId: string, after: list<string|int>}
+     */
+    public function decodeForResume(string $cursor): array
+    {
+        return $this->decodePayload($cursor, true);
+    }
+
+    /** @return array{entity: string, datasetId: string, after: list<string|int>} */
+    private function decodePayload(string $cursor, bool $allowExpired): array
+    {
         if (
             $cursor === ''
             || strlen($cursor) > self::MAX_CURSOR_LENGTH
@@ -90,7 +107,8 @@ final class CursorCodec
             || !is_array($payload[3])
             || !self::validTuple($payload[3])
             || !is_int($payload[4])
-            || $payload[4] <= ($this->clock)()
+            || $payload[4] < 1
+            || (!$allowExpired && $payload[4] <= ($this->clock)())
         ) {
             throw self::invalidCursor();
         }

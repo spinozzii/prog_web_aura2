@@ -12,6 +12,7 @@ if (-not (Test-Path -LiteralPath $pidPath -PathType Leaf)) {
     return
 }
 $processState = Get-DriveAuraState -Path $pidPath
+$cleanupErrors = New-Object System.Collections.Generic.List[string]
 
 $tomcatEnvironment = @{
     JAVA_HOME = [string]$state.javaHome
@@ -19,16 +20,20 @@ $tomcatEnvironment = @{
     CATALINA_HOME = [string]$state.tomcatHome
     CATALINA_BASE = [string]$state.tomcatBase
 }
-$tomcatLauncherId = [int]$processState.tomcatLauncherPid
-if ($tomcatLauncherId -gt 0) {
+$tomcatIdentity = $processState.tomcatProcess
+$djangoIdentity = $processState.djangoProcess
+if ($null -ne $tomcatIdentity -and
+    (Test-DriveAuraProcessIdentity -Identity $tomcatIdentity -Label 'Tomcat')) {
     $previous = Set-DriveAuraProcessEnvironment -Values $tomcatEnvironment
     try {
         $stopResult = Invoke-DriveAuraExternal `
             -FilePath (Join-Path ([string]$state.tomcatHome) 'bin\catalina.bat') `
-            -Arguments @('stop') -AllowFailure
+            -Arguments @('stop') -AllowFailure -TimeoutSeconds 8
         if ($stopResult.ExitCode -ne 0) {
             Write-Warning 'Arresto Tomcat non confermato dal comando catalina.'
         }
+    } catch {
+        $cleanupErrors.Add(("arresto Tomcat: {0}" -f $_.Exception.Message))
     } finally {
         Restore-DriveAuraProcessEnvironment -Previous $previous
     }
@@ -36,77 +41,46 @@ if ($tomcatLauncherId -gt 0) {
 
 $deadline = [DateTime]::UtcNow.AddSeconds(12)
 while ([DateTime]::UtcNow -lt $deadline) {
-    $tomcatLauncher = Get-Process -Id ([int]$processState.tomcatLauncherPid) `
-        -ErrorAction SilentlyContinue
-    $tomcatChildren = @(
-        Get-CimInstance -ClassName Win32_Process -ErrorAction Stop |
-            Where-Object {
-                -not [string]::IsNullOrWhiteSpace([string]$_.CommandLine) -and
-                ([string]$_.CommandLine).IndexOf(
-                    [string]$state.tomcatBase,
-                    [StringComparison]::OrdinalIgnoreCase
-                ) -ge 0
-            }
-    )
-    if ($null -eq $tomcatLauncher -and $tomcatChildren.Count -eq 0) {
+    if ($null -eq $tomcatIdentity -or
+        -not (Test-DriveAuraProcessIdentity -Identity $tomcatIdentity -Label 'Tomcat')) {
         break
     }
     Start-Sleep -Milliseconds 250
 }
 
 foreach ($entry in @(
-        [pscustomobject]@{
-            Id = [int]$processState.djangoPid
-            Marker = [string]$processState.djangoMarker
-            Label = 'Django'
-        },
-        [pscustomobject]@{
-            Id = [int]$processState.tomcatLauncherPid
-            Marker = [string]$processState.tomcatMarker
-            Label = 'Tomcat'
-        }
+        [pscustomobject]@{ Identity = $tomcatIdentity; Label = 'Tomcat' },
+        [pscustomobject]@{ Identity = $djangoIdentity; Label = 'Django' }
     )) {
-    if ($entry.Id -le 0) {
+    if ($null -eq $entry.Identity) {
         continue
     }
-    $process = Get-Process -Id $entry.Id -ErrorAction SilentlyContinue
-    if ($null -eq $process) {
-        continue
+    try {
+        Stop-DriveAuraOwnedProcessTree -Identity $entry.Identity `
+            -Label $entry.Label -TimeoutSeconds 5
+    } catch {
+        $cleanupErrors.Add(("{0}: {1}" -f $entry.Label, $_.Exception.Message))
     }
-    $commandLine = Get-DriveAuraProcessCommandLine -ProcessId $entry.Id
-    if ([string]::IsNullOrWhiteSpace($commandLine) -or
-        $commandLine.IndexOf($entry.Marker, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
-        throw ("Rifiutato arresto PID {0}: command line non riconducibile a {1}." -f
-            $entry.Id, $entry.Label)
-    }
-    Stop-Process -Id $entry.Id -Force
-}
-
-$remainingTomcat = @(
-    Get-CimInstance -ClassName Win32_Process -ErrorAction Stop |
-        Where-Object {
-            -not [string]::IsNullOrWhiteSpace([string]$_.CommandLine) -and
-            ([string]$_.CommandLine).IndexOf(
-                [string]$state.tomcatBase,
-                [StringComparison]::OrdinalIgnoreCase
-            ) -ge 0
-        }
-)
-foreach ($process in $remainingTomcat) {
-    $commandLine = [string]$process.CommandLine
-    if ($commandLine.IndexOf(
-            [string]$state.tomcatBase,
-            [StringComparison]::OrdinalIgnoreCase
-        ) -lt 0) {
-        throw "Rifiutato arresto PID $($process.ProcessId): command line Tomcat non riconosciuta."
-    }
-    Stop-Process -Id ([int]$process.ProcessId) -Force
 }
 
 Start-Sleep -Milliseconds 500
-Assert-DriveAuraPortAvailable -Port ([int]$state.djangoPort) -Label 'Porta Django'
-Assert-DriveAuraPortAvailable -Port ([int]$state.tomcatPort) -Label 'Porta Tomcat'
-Assert-DriveAuraPortAvailable -Port ([int]$state.tomcatShutdownPort) -Label 'Porta arresto Tomcat'
+foreach ($port in @(
+        [pscustomobject]@{ Value = [int]$state.djangoPort; Label = 'Porta Django' },
+        [pscustomobject]@{ Value = [int]$state.tomcatPort; Label = 'Porta Tomcat' },
+        [pscustomobject]@{
+            Value = [int]$state.tomcatShutdownPort
+            Label = 'Porta arresto Tomcat'
+        }
+    )) {
+    try {
+        Assert-DriveAuraPortAvailable -Port $port.Value -Label $port.Label
+    } catch {
+        $cleanupErrors.Add($_.Exception.Message)
+    }
+}
 
-Remove-Item -LiteralPath $pidPath -Force
+if ($cleanupErrors.Count -gt 0) {
+    throw ("Pulizia Drive Aura incompleta: {0}" -f ($cleanupErrors -join ' | '))
+}
+Remove-Item -LiteralPath $pidPath -Force -ErrorAction Stop
 Write-Host 'PASS: processi Drive Aura arrestati.'

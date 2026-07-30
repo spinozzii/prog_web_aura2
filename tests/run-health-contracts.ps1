@@ -121,19 +121,13 @@ Invoke-OrSkip 'Django isolated contracts' {
     $python = Get-Command python -ErrorAction Stop
     $version = & $python.Source -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
     if ($LASTEXITCODE -ne 0 -or $version.Trim() -ne '3.12') { throw "Python 3.12 richiesto; rilevato $version." }
-    $previousSqliteSetting = $env:DJANGO_TEST_SQLITE
-    $env:DJANGO_TEST_SQLITE = '1'
     Push-Location (Join-Path $projectRoot 'local-django')
     try {
-        & $python.Source manage.py test health_service
+        & $python.Source manage.py test health_service `
+            --settings health_service.test_settings
         if ($LASTEXITCODE -ne 0) { throw 'Il test Django ha restituito un errore.' }
     } finally {
         Pop-Location
-        if ($null -eq $previousSqliteSetting) {
-            Remove-Item Env:DJANGO_TEST_SQLITE -ErrorAction SilentlyContinue
-        } else {
-            $env:DJANGO_TEST_SQLITE = $previousSqliteSetting
-        }
     }
 }
 

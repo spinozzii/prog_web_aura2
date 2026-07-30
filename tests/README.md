@@ -1,6 +1,6 @@
 # Test condivisi
 
-Questa cartella conterrà fixture e vettori di contratto condivisi tra PHP,
+Questa cartella contiene fixture e vettori di contratto condivisi tra PHP,
 Java e Python:
 
 - salute;

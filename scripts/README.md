@@ -1,6 +1,6 @@
 # Configurazione e verifica
 
-Questa cartella conterrà gli strumenti da riga di comando per:
+Questa cartella contiene gli strumenti da riga di comando per:
 
 - rilevare prerequisiti e versioni;
 - configurare l'ambiente locale;

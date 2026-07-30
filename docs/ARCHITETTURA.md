@@ -148,6 +148,11 @@ inizializza il registro locale o ne legge lo stato persistente e inizia il
 flusso. Una seconda richiesta con lo stesso identificativo e dataset riprende
 dal checkpoint confermato e non crea duplicazioni.
 
+Il PHP mantiene la scadenza nominale nei cursori, ma un export Bearer
+autenticato accetta un checkpoint persistito correttamente firmato anche dopo
+la scadenza. Firma, entità e `datasetId` restano obbligatori: un riavvio
+tardivo può quindi usare esattamente il cursore autorevole salvato da Django.
+
 ### Import locale
 
 `POST /api/v1/migrations/{migrationId}/batches`

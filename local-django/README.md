@@ -13,7 +13,7 @@ La risposta usa `application/json; charset=utf-8`. In un ambiente Python 3.12
 con dipendenze installate, il test è:
 
 ```text
-python manage.py test health_service
+python manage.py test health_service --settings health_service.test_settings
 ```
 
 Le API protette sono:
@@ -27,9 +27,10 @@ Le API protette sono:
 Persistono in PostgreSQL tutte le entità definite da
 `shared/entity-schema.json`, con PK semplici e composte, FK, direttore
 sanitario univoco e vincoli di dominio. `entity_migration_run` e
-`entity_migration_batch` registrano separatamente ogni entità e lotto; le
-tabelle T02 `migration_run` e `migration_batch` restano disponibili per la
-compatibilità della verticale singola `patologia`.
+`entity_migration_batch` registrano separatamente ogni entità e lotto. Le
+tabelle T02 `migration_run` e `migration_batch` restano soltanto nella storia
+delle migrazioni; l'API finale usa un unico percorso con manifest globale,
+checkpoint obbligatori e `DjangoEntityRepository`.
 
 Configurare `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
 `POSTGRES_HOST`, `POSTGRES_PORT`, `LOCAL_API_SECRET` e `DJANGO_SECRET_KEY`,
@@ -39,8 +40,10 @@ quindi applicare le migrazioni:
 python manage.py migrate
 ```
 
-`DJANGO_TEST_SQLITE=1` è ammesso esclusivamente dal runner isolato: non
-costituisce una prova PostgreSQL.
+Le impostazioni operative non contengono SQLite e falliscono se
+`DJANGO_SECRET_KEY` manca. Il modulo `health_service.test_settings` usa
+SQLite in memoria esclusivamente per i test isolati; non costituisce una
+prova PostgreSQL.
 
 La finalizzazione segue l'ordine completo, ricalcola digest e `datasetId`,
 controlla FK e unicità, richiede una patologia per ogni ricovero e verifica

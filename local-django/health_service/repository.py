@@ -285,37 +285,20 @@ class DjangoEntityRepository:
         execution = MigrationExecution.objects.select_for_update().filter(
             migration_id=migration_id
         ).first()
-        if execution is not None:
-            if execution.dataset_id != batch["datasetId"]:
-                raise MigrationApiError(
-                    409, "DATASET_CHANGED", "Il dataset della migrazione non coincide."
-                )
-            if not batch["_checkpointed"]:
-                raise MigrationApiError(
-                    400,
-                    "CHECKPOINT_REQUIRED",
-                    "Il percorso resiliente richiede il checkpoint del cursore.",
-                )
+        if execution is None:
+            raise MigrationApiError(
+                404, "MIGRATION_NOT_FOUND", "Inizializzare prima la migrazione."
+            )
+        if execution.dataset_id != batch["datasetId"]:
+            raise MigrationApiError(
+                409, "DATASET_CHANGED", "Il dataset della migrazione non coincide."
+            )
         run = EntityMigrationRun.objects.select_for_update().filter(
             migration_id=migration_id, entity=entity
         ).first()
         if run is None:
-            if execution is not None:
-                raise MigrationApiError(
-                    409, "MIGRATION_CONFLICT", "Il manifest inizializzato è incompleto."
-                )
-            if batch["batchSequence"] != 0:
-                raise MigrationApiError(
-                    409, "UNEXPECTED_SEQUENCE", "Il primo lotto deve avere sequenza zero."
-                )
-            self._assert_dataset_and_dependency(migration_id, batch)
-            run = EntityMigrationRun.objects.create(
-                migration_id=migration_id,
-                dataset_id=batch["datasetId"],
-                entity=entity,
-                expected_row_count=batch["expectedRowCount"],
-                expected_digest=batch["expectedDigest"],
-                status="created",
+            raise MigrationApiError(
+                409, "MIGRATION_CONFLICT", "Il manifest inizializzato è incompleto."
             )
 
         self._assert_identity(run, batch)
@@ -432,33 +415,24 @@ class DjangoEntityRepository:
         execution = MigrationExecution.objects.select_for_update().filter(
             migration_id=migration_id
         ).first()
-        if execution is not None:
-            if execution.dataset_id != expected["datasetId"]:
-                raise MigrationApiError(
-                    409, "DATASET_CHANGED", "Il dataset della migrazione non coincide."
-                )
-            if execution.status == "failed":
-                raise MigrationApiError(
-                    409, "MIGRATION_FAILED", "La migrazione è fallita."
-                )
+        if execution is None:
+            raise MigrationApiError(
+                404, "MIGRATION_NOT_FOUND", "Inizializzare prima la migrazione."
+            )
+        if execution.dataset_id != expected["datasetId"]:
+            raise MigrationApiError(
+                409, "DATASET_CHANGED", "Il dataset della migrazione non coincide."
+            )
+        if execution.status == "failed":
+            raise MigrationApiError(
+                409, "MIGRATION_FAILED", "La migrazione è fallita."
+            )
         run = EntityMigrationRun.objects.select_for_update().filter(
             migration_id=migration_id, entity=entity
         ).first()
         if run is None:
-            if execution is not None:
-                raise MigrationApiError(
-                    409, "MIGRATION_CONFLICT", "Il manifest inizializzato è incompleto."
-                )
-            if expected["expectedRowCount"] != 0 or expected["expectedBatchCount"] != 0:
-                raise MigrationApiError(404, "MIGRATION_NOT_FOUND", "Migrazione non trovata.")
-            self._assert_dataset_and_dependency(migration_id, expected)
-            run = EntityMigrationRun.objects.create(
-                migration_id=migration_id,
-                dataset_id=expected["datasetId"],
-                entity=entity,
-                expected_row_count=0,
-                expected_digest=expected["expectedDigest"],
-                status="created",
+            raise MigrationApiError(
+                409, "MIGRATION_CONFLICT", "Il manifest inizializzato è incompleto."
             )
         self._assert_identity(run, expected)
         if run.status == "failed":
@@ -512,7 +486,7 @@ class DjangoEntityRepository:
     def status(self, migration_id):
         runs = list(EntityMigrationRun.objects.filter(migration_id=migration_id))
         execution = MigrationExecution.objects.filter(migration_id=migration_id).first()
-        if not runs:
+        if execution is None or not runs:
             raise MigrationApiError(404, "MIGRATION_NOT_FOUND", "Migrazione non trovata.")
         by_entity = {run.entity: run for run in runs}
         ordered = [by_entity[name] for name in ENTITY_ORDER if name in by_entity]

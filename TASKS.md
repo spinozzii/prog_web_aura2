@@ -6,70 +6,30 @@ Nessuna.
 
 ## BACKLOG
 
-- [ ] **T11 - Audit finale e pacchetto di consegna**
-  - audit statico, test automatici e prova end-to-end;
-  - verifica dei cinque minuti;
-  - controllo codice commentato, dump, PDF e contenuto dell'archivio;
-  - bozza email conforme alle linee guida.
+Nessuna.
 
 ## IN REVISIONE
 
-- [ ] **T09.1 - Allineamento tempo del manuale e rigenerazione pacchetto**
-  - correggere `docs/MANUALE_INSTALLAZIONE.md`: la prova definitiva Tomcat 11
-    è durata 43,290 secondi interni e 43,571 secondi wall-clock, come
-    documentato in `docs/VERIFICA_T09.md` e `PROJECT_STATUS.md`; rimuovere il
-    valore non supportato di 43,642 secondi;
-  - cercare e correggere ogni altra occorrenza incoerente dello stesso dato,
-    senza modificare il tempo verificato di Tomcat 9;
-  - rigenerare il manuale PDF usando la skill `pdf:pdf` e renderizzare
-    nuovamente tutte le pagine per la verifica visiva;
-  - ricostruire `dist/drive-aura-51-offline.zip`, aggiornare checksum,
-    dimensione e tutti i riferimenti documentali al nuovo archivio;
-  - rieseguire il controllo completo del contenuto e degli hash, verificando
-    che il PDF aggiornato sia quello incluso nello ZIP;
-  - non modificare codice applicativo e non avviare T11;
-  - aggiornare `TASKS.md` e `PROJECT_STATUS.md`, spostare T09.1 in
-    `IN REVISIONE`, creare un commit e pubblicarlo su `origin/main`;
-  - verificare commit locale/remoto e working tree pulito prima di fermarsi.
-
-- [ ] **T09 - Pacchetto offline, installazione sotto cinque minuti e PDF**
-  - creare un pacchetto di consegna candidato che includa sorgenti necessari,
-    configurazioni di esempio, dump/checksum, dipendenze Python offline con
-    hash, WAR precompilati Tomcat 9/11, script e documenti finali;
-  - il computer del docente non deve richiedere Internet, Maven, Composer,
-    Node.js, IDE o compilazione Java;
-  - implementare un configuratore PowerShell non interattivo o guidato che
-    rilevi Python 3.12, Java, Tomcat e PostgreSQL, rifiuti versioni
-    incompatibili e non richieda privilegi amministrativi non necessari;
-  - creare un ambiente virtuale locale e installare Django/psycopg soltanto
-    dalla wheelhouse offline verificata tramite hash;
-  - creare/configurare il database PostgreSQL, applicare le migrazioni,
-    selezionare e distribuire il WAR corretto e produrre configurazioni locali
-    senza salvare segreti nel repository o nell'archivio;
-  - includere un verificatore che controlli salute dei tre componenti,
-    readiness PostgreSQL e una migrazione sintetica, distinguendo chiaramente
-    la verifica rapida dalla migrazione massiva;
-  - preparare istruzioni separate e realistiche per pubblicare il PHP su
-    Altervista, senza effettuare la distribuzione;
-  - eseguire da una copia pulita del pacchetto una prova offline cronometrata:
-    installazione, configurazione e verifica devono concludersi entro cinque
-    minuti; documentare ambiente, versioni, comandi, tempi e problemi;
-  - testare casi avversi: Python/Java/Tomcat/PostgreSQL mancanti o
-    incompatibili, porta occupata, database non raggiungibile, archivio o hash
-    alterato, segreto mancante e assenza di rete;
-  - scrivere un manuale sintetico per utente generico e un documento di circa
-    una pagina sulle scelte progettuali, coerenti soltanto con procedure
-    realmente provate;
-  - generare i due PDF finali usando il workflow PDF previsto e verificarli
-    visivamente pagina per pagina: nessun testo tagliato, sovrapposizione,
-    carattere corrotto o pagina superflua;
-  - verificare che l'archivio non contenga cache, log, `target`, credenziali,
-    runtime temporanei o file estranei e che contenga tutto il necessario;
-  - mantenere runner completo, test, migrazioni e `mvn clean package`;
-  - aggiornare `TASKS.md` e `PROJECT_STATUS.md`, spostare T09 in
-    `IN REVISIONE`, creare un commit e pubblicarlo su `origin/main`;
-  - verificare commit locale/remoto e working tree pulito, quindi fermarsi
-    senza iniziare T11.
+- [ ] **T11 - Audit finale e pacchetto di consegna**
+  - eseguito l'audit conclusivo rispetto a requisiti, checklist, piano test e
+    linee guida originali;
+  - corretti i percorsi applicativi permissivi, il connettore Tomcat 11, i
+    timeout, la gestione degli handle e l'identità persistente dei processi;
+  - superati runner rigoroso/`-AllowPartial`, test PHP/Java/Django, controlli
+    PostgreSQL, 27 casi installer e `mvn clean package`;
+  - superate prove pulite offline con Tomcat 9 e Tomcat 11 in meno di un
+    minuto ciascuna, con 22 righe/22 lotti, idempotenza e cleanup;
+  - riconfermate le evidenze massive di 36.176 righe/364 lotti, otto digest,
+    resilienza, PK/FK, unicità, domini e progressivi;
+  - verificati due build ZIP riproducibili, 111 entry/109 payload, hash e
+    assenza di cache, log, `target`, segreti o file estranei;
+  - rigenerati e controllati visivamente il manuale A4 di tre pagine e il
+    documento A4 di una pagina;
+  - completati checklist, rapporto `docs/VERIFICA_T11.md` e bozza email, senza
+    distribuzione Altervista, invio, tag o release;
+  - candidato finale: 12.842.104 byte, SHA-256
+    `0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea`;
+  - in attesa della revisione Work.
 
 ## COMPLETATE
 
@@ -144,6 +104,22 @@ Nessuna.
   - commit locale e GitHub verificati su
     `2c0e52b34c711873fdf92533bff9beec6d3b6878`;
   - revisione Work conclusa senza correzioni bloccanti.
+
+- [x] **T09 - Pacchetto offline, installazione sotto cinque minuti e PDF**
+  - prodotto pacchetto offline con wheel, WAR, dump, installer e documenti;
+  - superata prova pulita in 43,571 secondi wall-clock e 16 casi avversi;
+  - verificati archivio, hash, PDF e assenza di artefatti o credenziali;
+  - commit pubblicato su `6dcddceebf29181d2d02fe17cd5b0fae99278d3c`.
+
+- [x] **T09.1 - Allineamento tempo del manuale e rigenerazione pacchetto**
+  - allineati manuale e PDF ai tempi verificati 43,290/43,571 secondi;
+  - rigenerato pacchetto da 12.833.734 byte con SHA-256
+    `8008964dfbe07c8158194e4923e3877fcb1c544f8f079174f8d14e029d7a6eae`;
+  - PDF interno ed esterno coincidenti con SHA-256
+    `38a63b806b1271fdf530d574ecbc32b268dad6af3b12b151acf63df9dc3d4fc7`;
+  - commit locale e GitHub verificati su
+    `987a4c12db5de84f409cebdde58b3934924e42ff`;
+  - revisione Work conclusa senza ulteriori correzioni.
 
 ## BLOCCATE
 

@@ -119,8 +119,11 @@ paginazione sottostante usa:
 - chiave semplice per entità con una sola PK;
 - tupla completa in ordine lessicografico per chiavi composte.
 
-Un cursore non valido, scaduto o riferito a un'altra entità produce errore
-client esplicito. `limit` ha un massimo deciso dal server.
+Un cursore non valido o riferito a un'altra entità produce errore client
+esplicito. Il decoder generale rifiuta anche un cursore scaduto; l'export
+Bearer autenticato può invece riusare un checkpoint persistito e firmato
+dopo la scadenza nominale, purché entità e `datasetId` coincidano. `limit` ha
+un massimo deciso dal server.
 
 Da T07 ogni export richiede anche il `datasetId` a 64 cifre esadecimali
 ricevuto dal manifest. Un cursore è valido soltanto per quella precisa
@@ -300,7 +303,9 @@ L'ordine vincolante è:
 Il manifest T03 espone tutte le otto voci in questo ordine. L'endpoint di ogni
 pagina è `GET /api/v1/export/<entita>` e mantiene la forma della sezione 4.2;
 il cursore HMAC include entità, `datasetId`, tupla completa dell'ultima chiave
-ed espirazione. Il confronto keyset sottostante usa la stessa tupla completa.
+ed espirazione nominale. La continuazione autenticata accetta anche il
+checkpoint firmato scaduto per garantire la ripresa; il confronto keyset
+sottostante usa la stessa tupla completa.
 
 Java trasferisce e finalizza un'entità alla volta nell'ordine del manifest.
 `batchSequence` riparte da zero per ogni entità; `datasetId` identifica il
@@ -337,8 +342,13 @@ Ogni richiesta di lotto T07 aggiunge i campi obbligatori:
 
 Django registra questi valori nella stessa transazione del lotto. La risposta
 restituisce il checkpoint autorevole; in caso di ripetizione identica prevale
-quello già persistito, anche se un cursore HMAC rigenerato contiene una diversa
-scadenza.
+quello già persistito. Il servizio remoto accetta quel valore firmato
+invariato anche oltre la scadenza nominale, senza rinunciare ai controlli HMAC,
+entità e dataset.
+
+Nel contratto finale T07 il manifest globale deve essere inizializzato prima
+di ogni lotto. I tre campi di checkpoint sono obbligatori per tutte le entità;
+il precedente percorso T02.2 senza manifest non è esposto dall'API finale.
 
 Lo stato globale:
 

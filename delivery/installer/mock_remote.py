@@ -189,7 +189,7 @@ class FixtureDataset:
 
 
 class CursorCodec:
-    """Short-lived HMAC cursor bound to dataset, entity and next row index."""
+    """HMAC cursor bound to dataset, entity and next row index."""
 
     def __init__(
         self,
@@ -215,7 +215,9 @@ class CursorCodec:
         ).digest()
         return f"{encoded}.{_base64url_encode(signature)}"
 
-    def decode(self, cursor: str) -> tuple[str, str, int]:
+    def decode(
+        self, cursor: str, *, allow_expired: bool = False
+    ) -> tuple[str, str, int]:
         try:
             if len(cursor) > 1024 or not CURSOR_PATTERN.fullmatch(cursor):
                 raise ValueError("invalid cursor syntax")
@@ -240,7 +242,8 @@ class CursorCodec:
                 or type(payload[3]) is not int
                 or payload[3] < 0
                 or type(payload[4]) is not int
-                or payload[4] <= int(self._clock())
+                or payload[4] < 1
+                or (not allow_expired and payload[4] <= int(self._clock()))
             ):
                 raise ValueError("invalid cursor payload")
             return payload[1], payload[2], payload[3]
@@ -363,7 +366,8 @@ class OfflineRemoteHandler(BaseHTTPRequestHandler):
             if requested_cursor == "":
                 raise ApiError(400, "INVALID_CURSOR", "Il cursore non e valido.")
             cursor_dataset, cursor_entity, index = self.server.cursor_codec.decode(
-                requested_cursor
+                requested_cursor,
+                allow_expired=True,
             )
             if cursor_dataset != dataset_id:
                 raise ApiError(409, "DATASET_CHANGED", "Il dataset remoto e cambiato.")

@@ -305,7 +305,7 @@ def main() -> int:
     build(
         ROOT / "docs" / "MANUALE_INSTALLAZIONE.md",
         OUTPUT / "manuale-drive-aura-51.pdf",
-        compact=False,
+        compact=True,
         title="Drive Aura 51 - Manuale di installazione",
     )
     build(

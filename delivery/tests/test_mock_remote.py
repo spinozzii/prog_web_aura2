@@ -127,6 +127,26 @@ class MockRemoteContractTest(unittest.TestCase):
         self.assertEqual(400, status)
         self.assertEqual("INVALID_CURSOR", body["error"]["code"])
 
+    def test_authenticated_resume_accepts_an_expired_signed_checkpoint(self) -> None:
+        now = [1000.0]
+        codec = mock_remote.CursorCodec(
+            "offline-expiry-test-secret",
+            ttl_seconds=10,
+            clock=lambda: now[0],
+        )
+        cursor = codec.encode(
+            self.server.dataset.dataset_id,
+            "patologia",
+            1,
+        )
+        now[0] = 1011.0
+        with self.assertRaises(mock_remote.ApiError):
+            codec.decode(cursor)
+        self.assertEqual(
+            (self.server.dataset.dataset_id, "patologia", 1),
+            codec.decode(cursor, allow_expired=True),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

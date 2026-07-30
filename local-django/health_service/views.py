@@ -14,7 +14,7 @@ from .migration_service import (
     validate_initialize,
     validate_migration_id,
 )
-from .repository import DjangoEntityRepository, DjangoPatologiaRepository
+from .repository import DjangoEntityRepository
 
 
 def _strict_object(pairs):
@@ -76,8 +76,7 @@ def _dispatch(request, migration_id, expected_method, operation):
 
 def _receive_batch(migration_id, payload):
     batch = validate_batch(payload)
-    repository = _repository(batch)
-    result = repository.apply_batch(migration_id, batch)
+    result = DjangoEntityRepository().apply_batch(migration_id, batch)
     run, duplicate = result[:2]
     checkpoint = result[2] if len(result) == 3 else None
     response = {
@@ -124,7 +123,7 @@ def _record_failure(migration_id, payload):
 
 def _finalize(migration_id, payload):
     expected = validate_finalize(payload)
-    run = _repository(expected).finalize(migration_id, expected)
+    run = DjangoEntityRepository().finalize(migration_id, expected)
     return _json({
         "apiVersion": "1.0",
         "migrationId": migration_id,
@@ -139,22 +138,7 @@ def _finalize(migration_id, payload):
 
 
 def _status(migration_id, payload):
-    try:
-        summary = DjangoEntityRepository().status(migration_id)
-    except MigrationApiError as error:
-        if error.code != "MIGRATION_NOT_FOUND":
-            raise
-        run = DjangoPatologiaRepository().status(migration_id)
-        summary = {
-            "dataset_id": run.dataset_id,
-            "entity": run.entity,
-            "status": run.status,
-            "imported_row_count": run.imported_row_count,
-            "expected_row_count": run.expected_row_count,
-            "next_sequence": run.next_sequence,
-            "last_batch_sequence": run.next_sequence - 1 if run.next_sequence else None,
-            "last_error": run.last_error,
-        }
+    summary = DjangoEntityRepository().status(migration_id)
     response = {
         "apiVersion": "1.0",
         "migrationId": migration_id,
@@ -167,24 +151,12 @@ def _status(migration_id, payload):
         "lastBatchSequence": summary["last_batch_sequence"],
         "lastError": summary["last_error"] or None,
     }
-    if "entities" in summary:
-        response.update({
-            "currentEntity": summary["current_entity"],
-            "recoverable": summary["last_error_recoverable"],
-            "entities": summary["entities"],
-        })
+    response.update({
+        "currentEntity": summary["current_entity"],
+        "recoverable": summary["last_error_recoverable"],
+        "entities": summary["entities"],
+    })
     return _json(response)
-
-
-def _repository(payload):
-    # Keep the executable T02.2 one-entity contract usable while T03 uses a
-    # global dataset identifier distinct from each entity digest.
-    if (
-        payload["entity"] == "patologia"
-        and payload["datasetId"] == payload["expectedDigest"]
-    ):
-        return DjangoPatologiaRepository()
-    return DjangoEntityRepository()
 
 
 def _authorize(request):

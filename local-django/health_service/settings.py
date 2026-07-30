@@ -1,14 +1,17 @@
 import os
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "replace-with-a-local-secret")
+from django.core.exceptions import ImproperlyConfigured
+
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY non configurata.")
 DEBUG = False
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ROOT_URLCONF = "health_service.urls"
 MIDDLEWARE = []
 INSTALLED_APPS = ["health_service.apps.HealthServiceConfig"]
-if os.environ.get("DJANGO_TEST_SQLITE") == "1":
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
-elif os.environ.get("POSTGRES_DB"):
+if os.environ.get("POSTGRES_DB"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",

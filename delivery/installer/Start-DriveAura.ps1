@@ -3,21 +3,19 @@ param(
     [Parameter(Mandatory = $true)][string]$StatePath,
     [Parameter(Mandatory = $true)][string]$RemoteApiUrl,
     [ValidateRange(1, 100)][int]$BatchSize = 50,
-    [ValidateRange(0, 5)][int]$MaxRetries = 2
+    [ValidateRange(0, 5)][int]$MaxRetries = 2,
+    [ValidateRange(5, 120)][int]$ReadinessTimeoutSeconds = 45
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 Import-Module (Join-Path $PSScriptRoot 'DriveAura.Common.psm1') -Force
 
+Repair-DriveAuraPathEnvironment | Out-Null
 $state = Get-DriveAuraState -Path $StatePath
 Assert-DriveAuraSecrets
 
-$remoteUri = $null
-if (-not [uri]::TryCreate($RemoteApiUrl, [UriKind]::Absolute, [ref]$remoteUri) -or
-    ($remoteUri.Scheme -ne 'http' -and $remoteUri.Scheme -ne 'https')) {
-    throw 'RemoteApiUrl deve essere un URL HTTP o HTTPS assoluto.'
-}
+Assert-DriveAuraRemoteUrl -Value $RemoteApiUrl | Out-Null
 Wait-DriveAuraHealth -BaseUrl $RemoteApiUrl -ExpectedService 'remote-php' -TimeoutSeconds 10
 
 Assert-DriveAuraPortAvailable -Port ([int]$state.djangoPort) -Label 'Porta Django'
@@ -33,9 +31,21 @@ $logRoot = Join-Path $runtimeRoot 'logs'
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
 $tomcatWrapper = Join-Path $runtimeRoot 'run-tomcat.bat'
+$djangoWrapper = Join-Path $runtimeRoot 'run-django.bat'
+$djangoOut = Join-Path $logRoot 'django.out.log'
+$djangoErr = Join-Path $logRoot 'django.err.log'
+$tomcatOut = Join-Path $logRoot 'tomcat.out.log'
+$tomcatErr = Join-Path $logRoot 'tomcat.err.log'
 @(
     '@echo off',
-    'call "%CATALINA_HOME%\bin\catalina.bat" run'
+    ('cd /d "{0}"' -f [string]$state.djangoRoot),
+    ('"{0}" manage.py runserver 127.0.0.1:{1} --noreload 1>>"{2}" 2>>"{3}" <NUL' -f
+        [string]$state.venvPython, [int]$state.djangoPort, $djangoOut, $djangoErr)
+) | Set-Content -LiteralPath $djangoWrapper -Encoding ASCII
+@(
+    '@echo off',
+    ('call "%CATALINA_HOME%\bin\catalina.bat" run 1>>"' +
+        $tomcatOut + '" 2>>"' + $tomcatErr + '" <NUL')
 ) | Set-Content -LiteralPath $tomcatWrapper -Encoding ASCII
 
 $djangoEnvironment = @{
@@ -46,6 +56,8 @@ $djangoEnvironment = @{
     POSTGRES_PORT = [string]$state.postgresPort
     LOCAL_API_SECRET = $env:LOCAL_API_SECRET
     DJANGO_SECRET_KEY = $env:DJANGO_SECRET_KEY
+    DJANGO_SETTINGS_MODULE = 'health_service.settings'
+    DJANGO_TEST_SQLITE = $null
 }
 $tomcatEnvironment = @{
     JAVA_HOME = [string]$state.javaHome
@@ -63,80 +75,62 @@ $tomcatEnvironment = @{
     BRIDGE_MAX_RETRIES = "$MaxRetries"
     BRIDGE_RETRY_DELAY_MS = '100'
 }
-$djangoProcess = $null
-$tomcatProcess = $null
+$djangoIdentity = $null
+$tomcatIdentity = $null
 try {
     $djangoPrevious = Set-DriveAuraProcessEnvironment -Values $djangoEnvironment
     try {
-        $djangoProcess = Start-Process `
-            -FilePath ([string]$state.venvPython) `
-            -ArgumentList @(
-                'manage.py',
-                'runserver',
-                ("127.0.0.1:{0}" -f $state.djangoPort),
-                '--noreload'
-            ) `
-            -WorkingDirectory ([string]$state.djangoRoot) `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput (Join-Path $logRoot 'django.out.log') `
-            -RedirectStandardError (Join-Path $logRoot 'django.err.log') `
-            -PassThru
+        $djangoIdentity = Start-DriveAuraManagedProcess `
+            -WrapperPath $djangoWrapper `
+            -WorkingDirectory ([string]$state.djangoRoot)
     } finally {
         Restore-DriveAuraProcessEnvironment -Previous $djangoPrevious
     }
 
     $processState = [pscustomobject]@{
-        djangoPid = $djangoProcess.Id
-        tomcatLauncherPid = -1
-        djangoMarker = [string]$state.installRoot
-        tomcatMarker = [string]$state.installRoot
+        apiVersion = '1.0'
+        djangoProcess = $djangoIdentity
+        tomcatProcess = $null
         startedAt = [DateTime]::UtcNow.ToString('o')
     }
     Save-DriveAuraState -State $processState -Path $pidPath
 
     $tomcatPrevious = Set-DriveAuraProcessEnvironment -Values $tomcatEnvironment
     try {
-        $tomcatProcess = Start-Process `
-            -FilePath $env:ComSpec `
-            -ArgumentList @('/d', '/c', ('"{0}"' -f $tomcatWrapper)) `
-            -WorkingDirectory ([string]$state.tomcatBase) `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput (Join-Path $logRoot 'tomcat.out.log') `
-            -RedirectStandardError (Join-Path $logRoot 'tomcat.err.log') `
-            -PassThru
+        $tomcatIdentity = Start-DriveAuraManagedProcess `
+            -WrapperPath $tomcatWrapper `
+            -WorkingDirectory ([string]$state.tomcatBase)
     } finally {
         Restore-DriveAuraProcessEnvironment -Previous $tomcatPrevious
     }
-    $processState.tomcatLauncherPid = $tomcatProcess.Id
+    $processState.tomcatProcess = $tomcatIdentity
     Save-DriveAuraState -State $processState -Path $pidPath
 
     Wait-DriveAuraHealth -BaseUrl ("http://127.0.0.1:{0}" -f $state.djangoPort) `
-        -ExpectedService 'local-django' -TimeoutSeconds 30
+        -ExpectedService 'local-django' -TimeoutSeconds $ReadinessTimeoutSeconds `
+        -ProcessIdentity $djangoIdentity -ProcessLabel 'Django'
     Wait-DriveAuraHealth -BaseUrl ("http://127.0.0.1:{0}" -f $state.tomcatPort) `
-        -ExpectedService 'bridge-servlet' -TimeoutSeconds 30
+        -ExpectedService 'bridge-servlet' -TimeoutSeconds $ReadinessTimeoutSeconds `
+        -ProcessIdentity $tomcatIdentity -ProcessLabel 'Tomcat'
 } catch {
+    $primaryError = $_
     try {
         if (Test-Path -LiteralPath $pidPath -PathType Leaf) {
             & (Join-Path $PSScriptRoot 'Stop-DriveAura.ps1') -StatePath $StatePath
-        } elseif ($null -ne $djangoProcess) {
-            $runningDjango = Get-Process -Id $djangoProcess.Id -ErrorAction SilentlyContinue
-            if ($null -ne $runningDjango) {
-                $commandLine = Get-DriveAuraProcessCommandLine -ProcessId $djangoProcess.Id
-                if ([string]::IsNullOrWhiteSpace($commandLine) -or
-                    $commandLine.IndexOf(
-                        [string]$state.installRoot,
-                        [StringComparison]::OrdinalIgnoreCase
-                    ) -lt 0) {
-                    throw "Rifiutato arresto PID $($djangoProcess.Id): Django non riconosciuto."
-                }
-                Stop-Process -Id $djangoProcess.Id -Force
+        } elseif ($null -ne $tomcatIdentity) {
+            Stop-DriveAuraOwnedProcessTree -Identity $tomcatIdentity -Label 'Tomcat'
+            if ($null -ne $djangoIdentity) {
+                Stop-DriveAuraOwnedProcessTree -Identity $djangoIdentity -Label 'Django'
             }
+        } elseif ($null -ne $djangoIdentity) {
+            Stop-DriveAuraOwnedProcessTree -Identity $djangoIdentity -Label 'Django'
         }
     } catch {
-        Write-Warning 'Pulizia automatica incompleta; controllare i PID nel registro processi.'
+        throw ("Avvio non riuscito: {0} | Pulizia automatica: {1}" -f
+            $primaryError.Exception.Message, $_.Exception.Message)
     }
-    throw
+    throw $primaryError
 }
 
 Write-Host ("PASS: Django e servlet pronti; PID {0}/{1}." -f
-    $djangoProcess.Id, $tomcatProcess.Id)
+    $djangoIdentity.pid, $tomcatIdentity.pid)

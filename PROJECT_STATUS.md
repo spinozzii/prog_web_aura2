@@ -5,9 +5,8 @@
 La scelta B è approvata: migrazione tramite servizio PHP remoto, servlet Java
 intermedia e servizio Django locale verso PostgreSQL.
 
-T00, T01, T01.1, T01.2, T02.1, T02.2, T03 e T07 sono completate. T09 e
-T09.1 sono in revisione. Non ci sono attività autorizzate; T11 resta nel
-backlog.
+T00, T01, T01.1, T01.2, T02.1, T02.2, T03, T07, T09 e T09.1 sono
+completate. T11 ha concluso l'audit tecnico ed è in revisione Work.
 
 ## Fatti e decisioni verificati
 
@@ -16,7 +15,8 @@ backlog.
 - Django 5.2.16 è fissato per Python 3.12.
 - Tomcat 9 usa `javax.servlet` e Java 8+, Tomcat 11 usa `jakarta.servlet` e
   Java 17+; la logica Java comune resta separata dagli adattatori.
-- Il Progetto 1 è una fonte in sola lettura e non è stato coinvolto.
+- Il Progetto 1 non è stato modificato; schema e dataset sono stati usati
+  soltanto in lettura per T07.
 - `origin` è `https://github.com/spinozzii/prog_web_aura2.git` e `main` segue
   `origin/main`.
 
@@ -173,7 +173,7 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
 
 ## Esito T09
 
-- Il candidato `dist/drive-aura-51-offline.zip` misura 12.833.734 byte e ha
+- Il candidato storico T09.1 misurava 12.833.734 byte e aveva
   SHA-256
   `8008964dfbe07c8158194e4923e3877fcb1c544f8f079174f8d14e029d7a6eae`.
   Il manifest verifica 108 file payload; lo ZIP contiene 110 file totali sotto
@@ -239,8 +239,62 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
   stesso hash dell'originale in `output/pdf`.
 - L'audit dell'archivio ha verificato 108 file payload e 110 entry totali
   sotto un'unica radice, senza duplicati, percorsi pericolosi, cache, log,
-  `target`, runtime, ambienti virtuali o credenziali. Nessun codice
-  applicativo è stato modificato e T11 non è stato iniziato.
+  `target`, runtime, ambienti virtuali o credenziali. Alla chiusura di T09.1
+  nessun codice applicativo era stato modificato e T11 non era ancora
+  iniziato.
+
+## Esito T11
+
+- L'audit ha confrontato codice e consegna con le linee guida originali,
+  `docs/REQUISITI.md`, `docs/CHECKLIST_PROFESSORE.md` e
+  `docs/PIANO_TEST.md`. La checklist è stata compilata; pubblicazione
+  Altervista, CC e accessibilità degli allegati restano non selezionati perché
+  non eseguiti.
+- Sono stati rimossi i percorsi applicativi permissivi: Django operativo usa
+  soltanto PostgreSQL e segreti espliciti, import/finalizzazione richiedono
+  inizializzazione e checkpoint completi, URL locale/remoto sono vincolati e
+  i cursori di ripresa restano autenticati e legati al dataset.
+- Il tentativo Tomcat 11 `002` falliva in
+  `WEPollSelectorImpl/PipeImpl` con `Unable to establish loopback connection`
+  e `Invalid argument: connect`. Il configuratore usa ora il connettore NIO2;
+  i log finali Tomcat 9/11 mostrano `http-nio2` e shutdown ordinato.
+- Il blocco del PowerShell padre era causato dagli handle di redirezione
+  ereditati dai processi persistenti e da un fallback CIM non disponibile.
+  Wrapper figli, Job Object Win32, Toolhelp, timeout, cleanup in `finally` e
+  verifica PID/percorso/istante chiudono ora l'intero albero senza coinvolgere
+  processi estranei.
+- I tick di creazione sono serializzati come testo decimale per evitare la
+  perdita di precisione JSON di PowerShell 5.1. La regressione round-trip, il
+  timeout, l'avvio fallito, il figlio orfano e il rilascio handle sono inclusi
+  nei 27 casi installer superati.
+- Il medesimo ZIP finale, da copie pulite e con installazione offline, ha
+  completato 22 righe/22 lotti, rilancio idempotente, audit e cleanup con
+  Tomcat 9 in 44,757 s interni/45,619 s wall-clock e con Tomcat 11 in
+  45,504 s interni/46,427 s wall-clock.
+- Il runner rigoroso è passato in 5,676 s con contratti Java/PHP e 25 test
+  Django. Senza runtime fallisce; `-AllowPartial` termina con tre skip
+  espliciti. Sono passati anche 5 test mock, lint di 18 file PHP, controlli
+  Django e migrazioni su PostgreSQL reale.
+- `mvn clean package` è passato in 4,619 s e ha prodotto entrambi i WAR; il
+  contenuto logico coincide con gli artefatti precompilati.
+- Le evidenze massive sono state ricalcolate sul dump byte-identico:
+  36.176 righe, 364 lotti, dataset
+  `75f461f906b5a6a4ed1252218ea2db664d8f929ba68403760474ff2f4d199e39`,
+  otto digest coincidenti e zero violazioni PK, FK, unicità, domini,
+  associazioni o progressivi.
+- Due build consecutive del candidato hanno prodotto 12.842.104 byte e
+  SHA-256
+  `0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea`.
+  L'audit ha verificato 111 entry/109 payload, sidecar e hash interni, senza
+  cache, log, `target`, runtime, credenziali o percorsi pericolosi.
+- Il manuale finale misura 105.128 byte e ha SHA-256
+  `044a319077888a56ce021b520277439314fc0fce88a624b82e8464340829e2c1`;
+  le scelte misurano 98.110 byte e hanno SHA-256
+  `350ee05ca081d86d9bfb9a2d0af095c03e141e5c1533016f0728a5dbf7a79428`.
+  Le quattro pagine A4 sono state renderizzate a 144 dpi e ispezionate senza
+  difetti visivi.
+- Rapporto e bozza email sono in `docs/VERIFICA_T11.md` e
+  `docs/BOZZA_EMAIL_CONSEGNA.md`.
 
 ## Limiti residui
 
@@ -254,8 +308,8 @@ normalizzazione del caso vuoto è obbligatoria come primo punto di T02.2.
   impedito l'uso della rete da parte della procedura.
 - La verifica rapida T09 usa una sorgente contrattuale loopback e non sostituisce
   il collaudo PHP/PDO massivo già osservato in T07.
-- T11, audit finale ed email di consegna, resta nel backlog e non è stato
-  iniziato.
+- L'email non è stata inviata: destinatari CC e accessibilità degli allegati
+  devono essere verificati immediatamente prima della consegna.
 
 ## Revisione Work T02.2
 
@@ -304,5 +358,5 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T09.1. Non avviare T11 senza una nuova
-autorizzazione esplicita in `TASKS.md`.
+Attendere la revisione Work di T11. Non è autorizzata alcuna attività
+successiva; l'email resta una bozza e non deve essere inviata automaticamente.

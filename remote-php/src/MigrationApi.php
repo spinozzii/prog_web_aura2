@@ -117,7 +117,10 @@ final class MigrationApi
                 throw self::invalidCursor();
             }
             $cursor = $query['cursor'];
-            $decoded = $this->cursorCodec->decode($cursor);
+            // This endpoint is already Bearer-authenticated. A persisted,
+            // correctly signed checkpoint remains resumable after its nominal
+            // expiry; tampering and dataset/entity changes are still rejected.
+            $decoded = $this->cursorCodec->decodeForResume($cursor);
             if ($decoded['entity'] !== $entity) {
                 throw self::invalidCursor();
             }

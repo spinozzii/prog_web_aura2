@@ -13,12 +13,11 @@ DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 DECIMAL_2 = re.compile(r"^(?:0|[1-9][0-9]*)\.[0-9]{2}$")
 CURSOR = re.compile(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$")
 ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
-LEGACY_BATCH_FIELDS = {
+BATCH_FIELDS = {
     "apiVersion", "datasetId", "entity", "batchSequence", "rowCount", "rows",
-    "digest", "expectedRowCount", "expectedDigest",
+    "digest", "expectedRowCount", "expectedDigest", "sourceCursor",
+    "nextCursor", "hasMore",
 }
-CHECKPOINT_FIELDS = {"sourceCursor", "nextCursor", "hasMore"}
-BATCH_FIELDS = LEGACY_BATCH_FIELDS | CHECKPOINT_FIELDS
 FINAL_FIELDS = {
     "apiVersion", "datasetId", "entity", "expectedRowCount", "expectedBatchCount", "expectedDigest",
 }
@@ -39,12 +38,8 @@ def validate_migration_id(migration_id):
 
 
 def validate_batch(payload):
-    if not isinstance(payload, dict) or set(payload) not in (
-        LEGACY_BATCH_FIELDS,
-        BATCH_FIELDS,
-    ):
+    if not isinstance(payload, dict) or set(payload) != BATCH_FIELDS:
         raise MigrationApiError(400, "INVALID_CONTRACT", "Campi della richiesta non validi.")
-    checkpointed = set(payload) == BATCH_FIELDS
     entity = _common(payload)
     _integer(payload["batchSequence"], "batchSequence", minimum=0)
     _integer(payload["rowCount"], "rowCount", minimum=1)
@@ -76,30 +71,29 @@ def validate_batch(payload):
         rows.append(row)
     if sha256_entity(entity, rows) != payload["digest"]:
         raise MigrationApiError(400, "DIGEST_MISMATCH", "Il digest del lotto non coincide.")
-    if checkpointed:
-        source_cursor = _cursor(payload["sourceCursor"], "sourceCursor")
-        next_cursor = _cursor(payload["nextCursor"], "nextCursor")
-        if not isinstance(payload["hasMore"], bool):
-            raise MigrationApiError(
-                400, "INVALID_CHECKPOINT", "Lo stato del cursore non è valido."
-            )
-        if payload["batchSequence"] == 0 and source_cursor is not None:
-            raise MigrationApiError(
-                400, "INVALID_CHECKPOINT", "Il primo lotto non può avere un cursore sorgente."
-            )
-        if payload["batchSequence"] > 0 and source_cursor is None:
-            raise MigrationApiError(
-                400, "INVALID_CHECKPOINT", "Il cursore sorgente del lotto è mancante."
-            )
-        if payload["hasMore"] != (next_cursor is not None):
-            raise MigrationApiError(
-                400, "INVALID_CHECKPOINT", "Il cursore successivo non coincide con hasMore."
-            )
-        if source_cursor is not None and source_cursor == next_cursor:
-            raise MigrationApiError(
-                400, "INVALID_CHECKPOINT", "Il cursore non è avanzato."
-            )
-    return {**payload, "rows": rows, "_checkpointed": checkpointed}
+    source_cursor = _cursor(payload["sourceCursor"], "sourceCursor")
+    next_cursor = _cursor(payload["nextCursor"], "nextCursor")
+    if not isinstance(payload["hasMore"], bool):
+        raise MigrationApiError(
+            400, "INVALID_CHECKPOINT", "Lo stato del cursore non è valido."
+        )
+    if payload["batchSequence"] == 0 and source_cursor is not None:
+        raise MigrationApiError(
+            400, "INVALID_CHECKPOINT", "Il primo lotto non può avere un cursore sorgente."
+        )
+    if payload["batchSequence"] > 0 and source_cursor is None:
+        raise MigrationApiError(
+            400, "INVALID_CHECKPOINT", "Il cursore sorgente del lotto è mancante."
+        )
+    if payload["hasMore"] != (next_cursor is not None):
+        raise MigrationApiError(
+            400, "INVALID_CHECKPOINT", "Il cursore successivo non coincide con hasMore."
+        )
+    if source_cursor is not None and source_cursor == next_cursor:
+        raise MigrationApiError(
+            400, "INVALID_CHECKPOINT", "Il cursore non è avanzato."
+        )
+    return {**payload, "rows": rows, "_checkpointed": True}
 
 
 def validate_initialize(payload):

@@ -27,8 +27,11 @@ consegnato.
 T07 ha verificato la verticale completa sul dataset massivo di 36.176 righe.
 T09 ha prodotto il candidato offline con sorgenti, wheelhouse, WAR, dump,
 configuratore e PDF. La prova da ZIP pulito ha completato installazione,
-configurazione e verifica in 43,571 secondi senza usare Internet. Lo stato
-vincolante resta sempre in `TASKS.md`.
+configurazione e verifica in 43,571 secondi senza usare Internet. T11 ha
+concluso l'audit finale, ripetuto le prove pulite con Tomcat 9 e 11 e
+ricostruito il candidato riproducibile da 12.842.104 byte con SHA-256
+`0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea`.
+Lo stato vincolante resta sempre in `TASKS.md`.
 
 ## Origine dei dati
 
@@ -64,6 +67,8 @@ Altervista avverrà solo in una fase esplicitamente autorizzata.
 - `docs/VERIFICA_T03.md`: procedura ed esito della verticale completa;
 - `docs/VERIFICA_T07.md`: migrazione massiva e prove di resilienza osservate;
 - `docs/VERIFICA_T09.md`: pacchetto offline, prova pulita, PDF e casi avversi;
+- `docs/VERIFICA_T11.md`: audit conclusivo, prove finali e limiti;
+- `docs/BOZZA_EMAIL_CONSEGNA.md`: bozza non inviata e controlli pre-invio;
 - `docs/RISCHI.md`: rischi e contromisure.
 
 ## Avvio del lavoro

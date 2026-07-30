@@ -33,7 +33,7 @@ public final class MigrationConfig {
             int readTimeoutMs,
             int maxRetries,
             int retryDelayMs) {
-        if (!httpUrl(remoteBaseUrl) || !httpUrl(localBaseUrl)
+        if (!remoteUrl(remoteBaseUrl) || !localUrl(localBaseUrl)
                 || empty(remoteSecret) || empty(localSecret) || empty(bridgeSecret)) {
             throw new MigrationException("BRIDGE_NOT_CONFIGURED", 503, "La servlet non e configurata.");
         }
@@ -87,20 +87,41 @@ public final class MigrationConfig {
         }
     }
 
-    private static boolean httpUrl(String value) {
-        if (value == null) return false;
+    private static URI httpUri(String value) {
+        if (value == null) return null;
         try {
             URI uri = new URI(value);
             String scheme = uri.getScheme();
-            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+            if (("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
                     && uri.isAbsolute()
                     && uri.getHost() != null
                     && uri.getUserInfo() == null
                     && uri.getQuery() == null
-                    && uri.getFragment() == null;
+                    && uri.getFragment() == null) {
+                return uri;
+            }
+            return null;
         } catch (URISyntaxException error) {
-            return false;
+            return null;
         }
+    }
+
+    private static boolean remoteUrl(String value) {
+        URI uri = httpUri(value);
+        return uri != null
+                && ("https".equalsIgnoreCase(uri.getScheme()) || loopback(uri.getHost()));
+    }
+
+    private static boolean localUrl(String value) {
+        URI uri = httpUri(value);
+        return uri != null && loopback(uri.getHost());
+    }
+
+    private static boolean loopback(String host) {
+        return "localhost".equalsIgnoreCase(host)
+                || "127.0.0.1".equals(host)
+                || "::1".equals(host)
+                || "[::1]".equals(host);
     }
 
     private static boolean empty(String value) {

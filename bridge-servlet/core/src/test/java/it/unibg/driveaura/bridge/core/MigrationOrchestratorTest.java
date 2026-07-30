@@ -26,6 +26,7 @@ public final class MigrationOrchestratorTest {
 
     public static void main(String[] args) {
         configureResources(args);
+        transportUrlsAreRestricted();
         sharedFixtureDigests();
         validatorsAndCompositeKeys();
         freshCheckpointedMigration();
@@ -37,6 +38,38 @@ public final class MigrationOrchestratorTest {
         finalManifestChangeIsRejected();
         statusProxyAndRecoverableError();
         System.out.println("Resilienza orchestratore Java valida.");
+    }
+
+    private static void transportUrlsAreRestricted() {
+        new MigrationConfig(
+                "http://127.0.0.1:18081/api",
+                "http://localhost:8000",
+                "remote-test-secret", "local-test-secret", "bridge-test-secret",
+                1, 1000, 1000, 0, 0);
+        new MigrationConfig(
+                "https://remote.test/api",
+                "http://[::1]:8000",
+                "remote-test-secret", "local-test-secret", "bridge-test-secret",
+                1, 1000, 1000, 0, 0);
+        expectConfigurationFailure(
+                "http://remote.test/api",
+                "http://127.0.0.1:8000");
+        expectConfigurationFailure(
+                "https://remote.test/api",
+                "http://local.test:8000");
+    }
+
+    private static void expectConfigurationFailure(String remote, String local) {
+        try {
+            new MigrationConfig(
+                    remote, local,
+                    "remote-test-secret", "local-test-secret", "bridge-test-secret",
+                    1, 1000, 1000, 0, 0);
+            throw new AssertionError("URL di trasporto pericoloso accettato.");
+        } catch (MigrationException expected) {
+            check("BRIDGE_NOT_CONFIGURED".equals(expected.code),
+                    "Codice configurazione URL inatteso.");
+        }
     }
 
     private static void configureResources(String[] args) {

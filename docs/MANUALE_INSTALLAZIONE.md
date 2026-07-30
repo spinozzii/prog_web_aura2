@@ -40,12 +40,17 @@ Controllare le versioni:
 
 ## 2. Estrarre e controllare il pacchetto
 
-1. Estrarre lo ZIP in una cartella nuova, per esempio `C:\DriveAura51`.
-2. Aprire PowerShell nella cartella `drive-aura-51-offline`.
-3. Abilitare gli script soltanto per la sessione corrente.
-4. Verificare tutti gli hash prima di inserire segreti.
+1. Mettere ZIP e file `.sha256` nella stessa cartella e aprire PowerShell.
+2. Confrontare il checksum esterno prima di estrarre lo ZIP.
+3. Estrarre lo ZIP in una cartella nuova, per esempio `C:\DriveAura51`.
+4. Aprire PowerShell nella cartella `drive-aura-51-offline`.
+5. Abilitare gli script soltanto per la sessione corrente e verificare gli
+   hash interni prima di inserire segreti.
 
 ```powershell
+$expected = (Get-Content '.\drive-aura-51-offline.zip.sha256' -Raw).Split()[0]
+$actual = (Get-FileHash '.\drive-aura-51-offline.zip' -Algorithm SHA256).Hash.ToLower()
+if ($actual -ne $expected) { throw 'Checksum ZIP non valido' }
 Set-ExecutionPolicy -Scope Process Bypass
 .\installer\Test-PackageIntegrity.ps1
 ```
@@ -56,9 +61,11 @@ la copia estratta e ripartire dallo ZIP originale.
 ## 3. Impostare i segreti
 
 Impostare i valori soltanto nella sessione PowerShell. Non modificare i file
-del pacchetto e non inserire segreti nella riga di comando.
+del pacchetto e non passare segreti come parametri ai processi. Disabilitare
+prima il salvataggio della cronologia della sessione:
 
 ```powershell
+if (Get-Module PSReadLine) { Set-PSReadLineOption -HistorySaveStyle SaveNothing }
 $env:POSTGRES_PASSWORD = '<password-postgresql>'
 $env:DJANGO_SECRET_KEY = '<stringa-casuale-almeno-32-caratteri>'
 $env:LOCAL_API_SECRET = '<segreto-locale-almeno-12-caratteri>'
@@ -66,15 +73,16 @@ $env:REMOTE_API_SECRET = '<segreto-remoto-almeno-12-caratteri>'
 $env:BRIDGE_API_SECRET = '<segreto-bridge-almeno-12-caratteri>'
 ```
 
-Usare valori distinti. I segreti restano nell'ambiente dei processi e non
-entrano nell'archivio, nello stato installato o nei log.
+Usare valori distinti e chiudere la sessione al termine. I segreti restano
+nell'ambiente dei processi e non entrano nell'archivio, nello stato installato,
+nei log o nella cronologia PowerShell persistente.
 
 ## 4. Configurare e verificare
 
 Adattare i quattro percorsi. Il comando crea
 `..\drive-aura-51-runtime`, un ambiente virtuale, un `CATALINA_BASE` isolato
-e il WAR corretto. Prepara due database distinti: quello operativo resta vuoto
-e pronto per i dati reali; quello di verifica riceve soltanto la fixture
+e il WAR corretto. Prepara due database distinti: il database operativo resta
+vuoto e pronto per i dati reali; il database di verifica riceve la fixture
 sintetica da 22 righe e 22 lotti.
 
 ```powershell
@@ -106,7 +114,10 @@ Tomcat 11.0.24 e PostgreSQL 18.4 con autenticazione SCRAM. Con rete resa
 indisponibile e pacchetto estratto in un percorso con spazi, configurazione e
 verifica sono terminate in 43,290 secondi misurati dal configuratore e 43,571
 secondi wall-clock. La stessa prova con Tomcat 9.0.120 è terminata in 38,822
-secondi.
+secondi. La verifica completa ha un watchdog predefinito di 180 secondi,
+configurabile con `-VerificationTimeoutSeconds` fra 60 e 240 secondi. In caso
+di errore o timeout mostra le code dei log, arresta soltanto l'albero di
+processi registrato e verifica che le porte siano state liberate.
 
 ## 5. Cosa verifica il comando
 
@@ -131,7 +142,8 @@ remoto configurato.
 
 Preparare prima il componente remoto seguendo `ALTERVISTA.md`. Impostare nella
 stessa sessione i cinque segreti della sezione 3; il valore di
-`REMOTE_API_SECRET` deve coincidere con quello remoto.
+`REMOTE_API_SECRET` deve coincidere con il segreto configurato nel servizio
+PHP remoto.
 
 ```powershell
 .\installer\Start-DriveAura.ps1 `
@@ -146,11 +158,18 @@ Invoke-RestMethod 'http://127.0.0.1:8000/health'
 Invoke-RestMethod 'http://127.0.0.1:8080/health'
 ```
 
-Il database indicato da `-PostgresDatabase` è già dedicato e vuoto: usarlo per
-la migrazione reale con `tools\verify-mass-migration.ps1`. Non usare il
-database indicato da `-VerificationDatabase`. Il risultato massivo atteso è
-`completed`, 36.176 righe e 364 lotti. La durata della migrazione massiva non
-fa parte del controllo rapido di installazione.
+Il database indicato da `-PostgresDatabase` è già dedicato e vuoto. Non usare
+il database indicato da `-VerificationDatabase`. Avviare la migrazione reale:
+
+```powershell
+.\tools\verify-mass-migration.ps1 `
+  -RemoteBaseUrl 'https://ACCOUNT.altervista.org/drive-aura-api/remote-php/public' `
+  -LocalBaseUrl 'http://127.0.0.1:8000' `
+  -BridgeBaseUrl 'http://127.0.0.1:8080' -Repeat
+```
+
+Il risultato massivo atteso è `completed`, 36.176 righe e 364 lotti. La durata
+della migrazione massiva non fa parte del controllo rapido di installazione.
 
 ## 7. Arrestare
 
@@ -160,8 +179,9 @@ fa parte del controllo rapido di installazione.
 ```
 
 Attendere `PASS: processi Drive Aura arrestati`. Lo script usa il registro dei
-PID creato all'avvio, prova prima l'arresto Tomcat ordinato e rifiuta di
-terminare un processo con command line estranea.
+PID creato all'avvio e prova prima l'arresto Tomcat ordinato. Prima di forzare
+la chiusura verifica PID, percorso eseguibile e istante di avvio, quindi
+arresta soltanto i discendenti appartenenti a quell'albero.
 
 ## 8. Risolvere i problemi
 

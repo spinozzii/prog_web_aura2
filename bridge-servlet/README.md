@@ -35,6 +35,11 @@ Configurazione d'ambiente obbligatoria:
 - `REMOTE_API_URL`, `LOCAL_API_URL`;
 - `REMOTE_API_SECRET`, `LOCAL_API_SECRET`, `BRIDGE_API_SECRET`.
 
+`REMOTE_API_URL` richiede HTTPS fuori dal loopback; HTTP è ammesso soltanto
+per la sorgente sintetica su `localhost`, `127.0.0.1` o `::1`.
+`LOCAL_API_URL` deve sempre indicare il loopback, così i Bearer non vengono
+inviati in chiaro su reti esterne.
+
 Sono facoltativi `BRIDGE_BATCH_SIZE`, `BRIDGE_CONNECT_TIMEOUT_MS`,
 `BRIDGE_READ_TIMEOUT_MS`, `BRIDGE_MAX_RETRIES` (predefinito `2`, massimo `5`)
 e `BRIDGE_RETRY_DELAY_MS` (predefinito `100`, massimo `10000` millisecondi).

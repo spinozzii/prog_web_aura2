@@ -36,6 +36,232 @@ function Invoke-ExpectedFailure {
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("drive-aura-t09-tests-{0}" -f [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 try {
+    $pathEnvironment = [Environment]::GetEnvironmentVariables('Process')
+    $pathAliases = @(
+        $pathEnvironment.Keys |
+            Where-Object {
+                [string]::Equals(
+                    [string]$_,
+                    'Path',
+                    [StringComparison]::OrdinalIgnoreCase
+                )
+            }
+    )
+    $pathValue = if ($pathAliases.Count -gt 0) {
+        [string]$pathEnvironment[$pathAliases[0]]
+    } else {
+        ''
+    }
+    [Environment]::SetEnvironmentVariable('Path', $pathValue, 'Process')
+    [Environment]::SetEnvironmentVariable('PATH', $pathValue, 'Process')
+    Repair-DriveAuraPathEnvironment | Out-Null
+    $normalizedAliases = @(
+        [Environment]::GetEnvironmentVariables('Process').Keys |
+            Where-Object {
+                [string]::Equals(
+                    [string]$_,
+                    'Path',
+                    [StringComparison]::OrdinalIgnoreCase
+                )
+            }
+    )
+    if ($normalizedAliases.Count -ne 1) {
+        throw 'La normalizzazione Path/PATH non ha prodotto una chiave univoca.'
+    }
+    $processProbe = Start-Process -FilePath $env:ComSpec `
+        -ArgumentList @('/d', '/c', 'exit 0') -WindowStyle Hidden -PassThru
+    $processProbe.WaitForExit()
+    if ($processProbe.ExitCode -ne 0) {
+        throw 'Il processo di prova non si e concluso correttamente.'
+    }
+    Write-Host 'PASS: ambiente Path/PATH normalizzato per Start-Process.'
+    $passed++
+
+    $externalTimer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        Invoke-DriveAuraExternal `
+            -FilePath (Join-Path $env:SystemRoot 'System32\ping.exe') `
+            -Arguments @('127.0.0.1', '-n', '30') `
+            -TimeoutSeconds 1 | Out-Null
+        throw 'Il processo esterno bloccato non ha prodotto timeout.'
+    } catch {
+        if ($_.Exception.Message -notmatch 'Timeout') {
+            throw
+        }
+    } finally {
+        $externalTimer.Stop()
+    }
+    if ($externalTimer.Elapsed.TotalSeconds -gt 8) {
+        throw "Timeout processo esterno troppo lento: $($externalTimer.Elapsed.TotalSeconds) secondi."
+    }
+    Write-Host 'PASS: processo esterno arrestato entro il timeout finito.'
+    $passed++
+
+    $metacharRoot = Join-Path $tempRoot 'external-&-probe'
+    New-Item -ItemType Directory -Path $metacharRoot | Out-Null
+    $metacharBatch = Join-Path $metacharRoot 'probe.cmd'
+    @('@echo off', 'echo METACHAR_OK') |
+        Set-Content -LiteralPath $metacharBatch -Encoding ASCII
+    $metacharResult = Invoke-DriveAuraExternal -FilePath $metacharBatch `
+        -TimeoutSeconds 5
+    if ($metacharResult.ExitCode -ne 0 -or
+        $metacharResult.Output -notmatch 'METACHAR_OK') {
+        throw 'Il comando batch in un percorso con metacaratteri non e stato eseguito.'
+    }
+    Write-Host 'PASS: comando batch in percorso con metacaratteri gestito.'
+    $passed++
+
+    $percentRoot = Join-Path $tempRoot 'external-%TEMP%-probe'
+    New-Item -ItemType Directory -Path $percentRoot | Out-Null
+    $percentBatch = Join-Path $percentRoot 'probe.cmd'
+    @('@echo off', 'echo PERCENT_PATH') |
+        Set-Content -LiteralPath $percentBatch -Encoding ASCII
+    Invoke-ExpectedFailure -Name 'Percorso batch con percentuale ambiguo' `
+        -MessagePattern 'carattere %' -Action {
+        Invoke-DriveAuraExternal -FilePath $percentBatch -TimeoutSeconds 5 |
+            Out-Null
+    }
+
+    $orphanRoot = Join-Path $tempRoot 'external child with spaces'
+    New-Item -ItemType Directory -Path $orphanRoot | Out-Null
+    $orphanPidPath = Join-Path $orphanRoot 'child.pid'
+    $orphanChildPath = Join-Path $orphanRoot 'orphan-child.ps1'
+    $orphanParentPath = Join-Path $orphanRoot 'spawn-orphan.ps1'
+    @'
+param([Parameter(Mandatory = $true)][string]$PidPath)
+[IO.File]::WriteAllText($PidPath, [string]$PID)
+Start-Sleep -Seconds 30
+'@ | Set-Content -LiteralPath $orphanChildPath -Encoding UTF8
+    @'
+param(
+    [Parameter(Mandatory = $true)][string]$ChildPath,
+    [Parameter(Mandatory = $true)][string]$PidPath
+)
+$powershellPath = (Get-Process -Id $PID).Path
+$argumentLine = '-NoProfile -ExecutionPolicy Bypass -File "{0}" "{1}"' -f `
+    $ChildPath.Replace('"', '""'), $PidPath.Replace('"', '""')
+$child = Start-Process -FilePath $powershellPath -ArgumentList $argumentLine `
+    -WindowStyle Hidden -PassThru
+$deadline = [DateTime]::UtcNow.AddSeconds(5)
+while (-not (Test-Path -LiteralPath $PidPath) -and [DateTime]::UtcNow -lt $deadline) {
+    Start-Sleep -Milliseconds 50
+}
+if (-not (Test-Path -LiteralPath $PidPath)) {
+    throw "Il figlio PID $($child.Id) non ha scritto il file di controllo."
+}
+'@ | Set-Content -LiteralPath $orphanParentPath -Encoding UTF8
+    $powershellExecutable = (Get-Process -Id $PID).Path
+    $orphanTimer = [Diagnostics.Stopwatch]::StartNew()
+    Invoke-DriveAuraExternal -FilePath $powershellExecutable -Arguments @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        $orphanParentPath,
+        $orphanChildPath,
+        $orphanPidPath
+    ) -TimeoutSeconds 8 | Out-Null
+    $orphanTimer.Stop()
+    if (-not (Test-Path -LiteralPath $orphanPidPath -PathType Leaf)) {
+        throw 'Il test del figlio esterno non ha prodotto il PID.'
+    }
+    $orphanPid = [int](Get-Content -Raw -LiteralPath $orphanPidPath)
+    Start-Sleep -Milliseconds 250
+    if ($null -ne (Get-Process -Id $orphanPid -ErrorAction SilentlyContinue)) {
+        throw "Il figlio esterno PID $orphanPid e rimasto attivo."
+    }
+    if ($orphanTimer.Elapsed.TotalSeconds -gt 10) {
+        throw "Chiusura albero esterno troppo lenta: $($orphanTimer.Elapsed.TotalSeconds) secondi."
+    }
+    Write-Host 'PASS: figli esterni e handle chiusi quando termina il processo radice.'
+    $passed++
+
+    $identityRoot = Join-Path $tempRoot 'identity round trip'
+    New-Item -ItemType Directory -Path $identityRoot | Out-Null
+    $identityWrapper = Join-Path $identityRoot 'long-running.bat'
+    @(
+        '@echo off',
+        '"%SystemRoot%\System32\ping.exe" 127.0.0.1 -n 30 >NUL'
+    ) | Set-Content -LiteralPath $identityWrapper -Encoding ASCII
+    $identity = Start-DriveAuraManagedProcess `
+        -WrapperPath $identityWrapper -WorkingDirectory $identityRoot
+    $identityStatePath = Join-Path $identityRoot 'identity.json'
+    try {
+        Save-DriveAuraState -State ([pscustomobject]@{
+                apiVersion = '1.0'
+                process = $identity
+            }) -Path $identityStatePath
+        $roundTripIdentity = (Get-DriveAuraState -Path $identityStatePath).process
+        if ($roundTripIdentity.startedUtcTicks -isnot [string]) {
+            throw 'L istante del processo non e stato serializzato come testo esatto.'
+        }
+        if (-not (Test-DriveAuraProcessIdentity `
+                -Identity $roundTripIdentity -Label 'round-trip JSON')) {
+            throw 'Il processo round-trip non e piu attivo.'
+        }
+    } finally {
+        Stop-DriveAuraOwnedProcessTree -Identity $identity `
+            -Label 'round-trip JSON' -TimeoutSeconds 3
+    }
+    Write-Host 'PASS: identita PID preservata esattamente nel round-trip JSON.'
+    $passed++
+
+    $managedRoot = Join-Path $tempRoot 'managed process with spaces'
+    New-Item -ItemType Directory -Path $managedRoot | Out-Null
+    $failedLog = Join-Path $managedRoot 'failed-start.log'
+    $failedWrapper = Join-Path $managedRoot 'failed-start.bat'
+    @(
+        '@echo off',
+        ('echo avvio intenzionalmente fallito 1>>"{0}" 2>&1' -f $failedLog),
+        'exit /b 23'
+    ) | Set-Content -LiteralPath $failedWrapper -Encoding ASCII
+    $probeListener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $probeListener.Start()
+    $failedPort = ([Net.IPEndPoint]$probeListener.LocalEndpoint).Port
+    $probeListener.Stop()
+    $failedIdentity = Start-DriveAuraManagedProcess `
+        -WrapperPath $failedWrapper -WorkingDirectory $managedRoot
+    $failedTimer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        Wait-DriveAuraHealth -BaseUrl ("http://127.0.0.1:{0}" -f $failedPort) `
+            -ExpectedService 'bridge-servlet' -TimeoutSeconds 3 `
+            -ProcessIdentity $failedIdentity -ProcessLabel 'Tomcat simulato'
+        throw 'La readiness ha accettato un avvio fallito.'
+    } catch {
+        if ($_.Exception.Message -notmatch 'terminato prima della readiness') {
+            throw
+        }
+    } finally {
+        Stop-DriveAuraOwnedProcessTree -Identity $failedIdentity `
+            -Label 'Tomcat simulato' -TimeoutSeconds 2
+        $failedTimer.Stop()
+    }
+    if ($failedTimer.Elapsed.TotalSeconds -gt 5) {
+        throw "Regressione avvio fallito oltre timeout: $($failedTimer.Elapsed.TotalSeconds) secondi."
+    }
+    Assert-DriveAuraPortAvailable -Port $failedPort -Label 'Porta avvio fallito'
+    $exclusive = [IO.File]::Open(
+        $failedLog,
+        [IO.FileMode]::Open,
+        [IO.FileAccess]::ReadWrite,
+        [IO.FileShare]::None
+    )
+    $exclusive.Dispose()
+    $renamedLog = $failedLog + '.renamed'
+    Move-Item -LiteralPath $failedLog -Destination $renamedLog
+    Move-Item -LiteralPath $renamedLog -Destination $failedLog
+    Write-Host 'PASS: avvio fallito, cleanup e rilascio handle entro il timeout.'
+    $passed++
+
+    Assert-DriveAuraRemoteUrl -Value 'http://127.0.0.1:18081/api' | Out-Null
+    Assert-DriveAuraRemoteUrl -Value 'http://localhost:18081/api' | Out-Null
+    Assert-DriveAuraRemoteUrl -Value 'https://account.altervista.org/api' | Out-Null
+    Invoke-ExpectedFailure -Name 'HTTP remoto non cifrato' -MessagePattern 'HTTPS' -Action {
+        Assert-DriveAuraRemoteUrl -Value 'http://remote.example/api' | Out-Null
+    }
+    Write-Host 'PASS: HTTP loopback e HTTPS remoto ammessi.'
+    $passed++
+
     Invoke-ExpectedFailure -Name 'Python mancante' -MessagePattern 'Python 3\.12' -Action {
         Get-DriveAuraPythonRuntime -PythonPath (Join-Path $tempRoot 'missing-python.exe') | Out-Null
     }
@@ -153,6 +379,23 @@ try {
         throw 'Il configuratore non garantisce installazione senza rete.'
     }
     Write-Host 'PASS: assenza di rete (nessun downloader e pip --no-index/--require-hashes).'
+    $passed++
+    if ($configureText -notmatch 'org\.apache\.coyote\.http11\.Http11Nio2Protocol') {
+        throw 'Il configuratore non forza il connector NIO2 compatibile con il contesto Windows.'
+    }
+    Write-Host 'PASS: connector Tomcat NIO2 configurato per Tomcat 9 e 11.'
+    $passed++
+
+    $startText = Get-Content -Raw -Encoding UTF8 `
+        -LiteralPath (Join-Path $repositoryRoot 'delivery\installer\Start-DriveAura.ps1')
+    $settingsText = Get-Content -Raw -Encoding UTF8 `
+        -LiteralPath (Join-Path $repositoryRoot 'local-django\health_service\settings.py')
+    if ($startText -notmatch "DJANGO_SETTINGS_MODULE\s*=\s*'health_service\.settings'" -or
+        $startText -notmatch 'DJANGO_TEST_SQLITE\s*=\s*\$null' -or
+        $settingsText -match 'DJANGO_TEST_SQLITE|sqlite3') {
+        throw 'Il servizio operativo puo ereditare impostazioni SQLite di test.'
+    }
+    Write-Host 'PASS: impostazioni operative Django vincolate a PostgreSQL.'
     $passed++
 
     if (-not [string]::IsNullOrWhiteSpace($ExtractedPackageRoot)) {

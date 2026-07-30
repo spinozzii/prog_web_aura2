@@ -144,14 +144,63 @@ class FullEntityMigrationTests(TestCase):
     def dataset_id(self):
         return sha256_dataset({
             entity: {
-                "rowCount": len(self.fixture[entity]),
-                "digest": sha256_entity(entity, self.fixture[entity]),
+                "rowCount": len(self.active_fixture[entity]),
+                "digest": sha256_entity(entity, self.active_fixture[entity]),
             }
             for entity in ENTITY_ORDER
         })
 
-    def batch_payload(self, entity, sequence, rows, expected_rows=None):
-        expected_rows = self.fixture[entity] if expected_rows is None else expected_rows
+    def manifest(self):
+        descriptors = {
+            entity: {
+                "rowCount": len(self.active_fixture[entity]),
+                "digest": sha256_entity(entity, self.active_fixture[entity]),
+            }
+            for entity in ENTITY_ORDER
+        }
+        return {
+            "apiVersion": "1.0",
+            "datasetId": sha256_dataset(descriptors),
+            "entityOrder": list(ENTITY_ORDER),
+            "entities": [
+                {
+                    "entity": entity,
+                    "rowCount": descriptors[entity]["rowCount"],
+                    "digest": descriptors[entity]["digest"],
+                }
+                for entity in ENTITY_ORDER
+            ],
+        }
+
+    def initialize(self):
+        return self.client.post(
+            reverse("migration-status", args=[self.migration_id]),
+            data=json.dumps(self.manifest(), ensure_ascii=False),
+            content_type="application/json",
+            **self.auth,
+        )
+
+    def setUp(self):
+        self.active_fixture = self.fixture
+        self.migration_id = str(
+            uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+        )
+        response = self.initialize()
+        self.assertEqual(response.status_code, 201, response.content)
+
+    def batch_payload(
+        self,
+        entity,
+        sequence,
+        rows,
+        expected_rows=None,
+        source_cursor=None,
+        next_cursor=None,
+        has_more=False,
+    ):
+        expected_rows = (
+            self.active_fixture[entity] if expected_rows is None else expected_rows
+        )
         return {
             "apiVersion": "1.0",
             "datasetId": self.dataset_id,
@@ -162,6 +211,9 @@ class FullEntityMigrationTests(TestCase):
             "digest": sha256_entity(entity, rows),
             "expectedRowCount": len(expected_rows),
             "expectedDigest": sha256_entity(entity, expected_rows),
+            "sourceCursor": source_cursor,
+            "nextCursor": next_cursor,
+            "hasMore": has_more,
         }
 
     def post_batch(self, payload):
@@ -173,7 +225,9 @@ class FullEntityMigrationTests(TestCase):
         )
 
     def finalize(self, entity, expected_rows=None, expected_batches=1):
-        expected_rows = self.fixture[entity] if expected_rows is None else expected_rows
+        expected_rows = (
+            self.active_fixture[entity] if expected_rows is None else expected_rows
+        )
         payload = {
             "apiVersion": "1.0",
             "datasetId": self.dataset_id,
@@ -190,7 +244,7 @@ class FullEntityMigrationTests(TestCase):
         )
 
     def complete(self, entity, rows=None):
-        rows = self.fixture[entity] if rows is None else rows
+        rows = self.active_fixture[entity] if rows is None else rows
         if rows:
             response = self.post_batch(self.batch_payload(entity, 0, rows, rows))
             self.assertEqual(response.status_code, 201, response.content)
@@ -206,8 +260,20 @@ class FullEntityMigrationTests(TestCase):
         for entity in ENTITY_ORDER:
             if entity == "ricovero":
                 rows = self.fixture[entity]
-                first = self.batch_payload(entity, 0, rows[:1])
-                second = self.batch_payload(entity, 1, rows[1:])
+                cursor = "ricovero-page-1.signature"
+                first = self.batch_payload(
+                    entity,
+                    0,
+                    rows[:1],
+                    next_cursor=cursor,
+                    has_more=True,
+                )
+                second = self.batch_payload(
+                    entity,
+                    1,
+                    rows[1:],
+                    source_cursor=cursor,
+                )
                 self.assertEqual(self.post_batch(first).status_code, 201)
                 self.assertEqual(self.post_batch(second).status_code, 201)
                 self.assertEqual(self.finalize(entity, expected_batches=2).status_code, 200)
@@ -248,12 +314,18 @@ class FullEntityMigrationTests(TestCase):
         self.assertEqual(partial_status.json()["status"], "running")
         self.complete("patologia")
         missing = self.batch_payload(
-            "patologia_cronica", 0, [{"cod_patologia": "P999"}], [{"cod_patologia": "P999"}]
+            "patologia_cronica", 0, [{"cod_patologia": "P999"}]
         )
         response = self.post_batch(missing)
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["code"], "FOREIGN_KEY_CONFLICT")
-        self.assertEqual(EntityMigrationRun.objects.filter(entity="patologia_cronica").count(), 0)
+        self.assertEqual(
+            EntityMigrationBatch.objects.filter(
+                run__migration_id=self.migration_id,
+                run__entity="patologia_cronica",
+            ).count(),
+            0,
+        )
 
         self.complete("patologia_cronica")
         self.complete("patologia_mortale")
@@ -265,12 +337,18 @@ class FullEntityMigrationTests(TestCase):
             },
         ]
         response = self.post_batch(
-            self.batch_payload("ospedale", 0, duplicate_director, duplicate_director)
+            self.batch_payload("ospedale", 0, duplicate_director)
         )
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["code"], "UNIQUE_CONFLICT")
         self.assertEqual(Ospedale.objects.count(), 0)
-        self.assertFalse(EntityMigrationRun.objects.filter(entity="ospedale").exists())
+        self.assertEqual(
+            EntityMigrationRun.objects.get(
+                migration_id=self.migration_id,
+                entity="ospedale",
+            ).status,
+            "created",
+        )
 
     def test_invalid_civil_dates_decimals_digest_and_incomplete_finalize(self):
         bad_date = [dict(self.fixture["cittadino"][0], data_nascita="2023-02-29")]
@@ -287,82 +365,78 @@ class FullEntityMigrationTests(TestCase):
         response = self.post_batch(wrong_digest)
         self.assertEqual(response.status_code, 400)
 
-        first = self.batch_payload("ricovero", 0, self.fixture["ricovero"][:1])
+        first = self.batch_payload(
+            "ricovero",
+            0,
+            self.fixture["ricovero"][:1],
+            next_cursor="ricovero-page-1.signature",
+            has_more=True,
+        )
         self.assertEqual(self.post_batch(first).status_code, 201)
         incomplete = self.finalize("ricovero", expected_batches=2)
         self.assertEqual(incomplete.status_code, 409)
         self.assertEqual(incomplete.json()["error"]["code"], "MIGRATION_INCOMPLETE")
 
     def test_missing_association_and_incoherent_progressivo_are_rejected(self):
-        self.complete_before("patologia_ricovero")
         only_one = [self.fixture["patologia_ricovero"][0]]
+        self.active_fixture = {
+            **self.fixture,
+            "patologia_ricovero": only_one,
+        }
+        self.migration_id = str(
+            uuid.UUID("abababab-abab-4bab-8bab-abababababab")
+        )
+        self.assertEqual(self.initialize().status_code, 201)
+        self.complete_before("patologia_ricovero")
         self.assertEqual(
             self.post_batch(
-                self.batch_payload("patologia_ricovero", 0, only_one, only_one)
+                self.batch_payload("patologia_ricovero", 0, only_one)
             ).status_code,
             201,
         )
-        response = self.finalize("patologia_ricovero", only_one)
+        response = self.finalize("patologia_ricovero")
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["code"], "MISSING_RICOVERO_PATHOLOGY")
 
         # A new migration id can safely reuse identical domain rows.
-        self.migration_id = str(uuid.UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc"))
-        for entity in ENTITY_ORDER[:-1]:
-            self.complete(entity)
         bad_progress = [
             self.fixture["progressivo_ricovero"][0],
             {"cod_ospedale": "H002", "prossimo_cod": 3},
         ]
+        self.active_fixture = {
+            **self.fixture,
+            "progressivo_ricovero": bad_progress,
+        }
+        self.migration_id = str(uuid.UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc"))
+        self.assertEqual(self.initialize().status_code, 201)
+        for entity in ENTITY_ORDER[:-1]:
+            self.complete(entity)
         self.assertEqual(
             self.post_batch(
                 self.batch_payload(
-                    "progressivo_ricovero", 0, bad_progress, bad_progress
+                    "progressivo_ricovero", 0, bad_progress
                 )
             ).status_code,
             201,
         )
-        response = self.finalize("progressivo_ricovero", bad_progress)
+        response = self.finalize("progressivo_ricovero")
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["code"], "INVALID_PROGRESSIVO")
 
-    def test_global_dataset_digest_is_checked_before_final_success(self):
-        self.complete_before("progressivo_ricovero")
-        rows = self.fixture["progressivo_ricovero"]
-        payload = self.batch_payload("progressivo_ricovero", 0, rows)
-        payload["datasetId"] = "f" * 64
-        response = self.post_batch(payload)
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.json()["error"]["code"], "MIGRATION_CONFLICT")
-
-        # Keep one deliberately wrong but internally consistent dataset id
-        # across a fresh migration to reach the global descriptor check.
-        self.migration_id = str(uuid.UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd"))
-        self.__dict__["_wrong_dataset"] = "f" * 64
-        for entity in ENTITY_ORDER:
-            rows = self.fixture[entity]
-            if rows:
-                batch = self.batch_payload(entity, 0, rows)
-                batch["datasetId"] = self.__dict__["_wrong_dataset"]
-                self.assertEqual(self.post_batch(batch).status_code, 201)
-            expected = {
-                "apiVersion": "1.0",
-                "datasetId": self.__dict__["_wrong_dataset"],
-                "entity": entity,
-                "expectedRowCount": len(rows),
-                "expectedBatchCount": 1 if rows else 0,
-                "expectedDigest": sha256_entity(entity, rows),
-            }
-            response = self.client.post(
-                reverse("migration-finalize", args=[self.migration_id]),
-                data=json.dumps(expected),
-                content_type="application/json",
-                **self.auth,
-            )
-            if entity == ENTITY_ORDER[-1]:
-                self.assertEqual(response.status_code, 409)
-                self.assertEqual(
-                    response.json()["error"]["code"], "DATASET_DIGEST_MISMATCH"
-                )
-            else:
-                self.assertEqual(response.status_code, 200)
+    def test_global_dataset_digest_is_checked_during_initialization(self):
+        invalid_manifest = self.manifest()
+        invalid_manifest["datasetId"] = "f" * 64
+        self.migration_id = str(
+            uuid.UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+        )
+        response = self.client.post(
+            reverse("migration-status", args=[self.migration_id]),
+            data=json.dumps(invalid_manifest),
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["error"]["code"],
+            "DATASET_DIGEST_MISMATCH",
+        )

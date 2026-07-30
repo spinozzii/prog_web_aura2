@@ -76,7 +76,8 @@ mvn -f .\bridge-servlet\pom.xml clean package
 
 Il runner è rigoroso: se un runtime o un test manca termina con errore.
 `-AllowPartial` consente gli skip e stampa il riepilogo esplicito. Nei test
-Django isolati il runner imposta temporaneamente `DJANGO_TEST_SQLITE=1`;
+Django isolati il runner usa il modulo dedicato
+`health_service.test_settings`;
 questo non è e non viene dichiarato come collaudo PostgreSQL.
 
 ## Verifica verticale

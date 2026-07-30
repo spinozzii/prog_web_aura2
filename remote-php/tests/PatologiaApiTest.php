@@ -13,6 +13,7 @@ require_once __DIR__ . '/../src/CursorCodec.php';
 require_once __DIR__ . '/../src/MigrationApi.php';
 require_once __DIR__ . '/FixtureEntitySource.php';
 
+use DriveAura\Remote\ApiException;
 use DriveAura\Remote\ApiResponse;
 use DriveAura\Remote\CursorCodec;
 use DriveAura\Remote\DatasetIdentity;
@@ -338,19 +339,30 @@ $expiring = $expiryApi->handle(
 );
 assertStatus(200, $expiring, 'cursore a scadenza');
 $expiryNow = 1011;
-assertError(
-    400,
-    'INVALID_CURSOR',
-    $expiryApi->handle(
-        'GET',
-        '/api/v1/export/ricovero',
-        exportQuery(
-            $datasetId,
-            ['limit' => '1', 'cursor' => $expiring->body['nextCursor']]
-        ),
-        $auth
+$strictExpiryRejected = false;
+try {
+    $expiryCodec->decode($expiring->body['nextCursor']);
+} catch (ApiException $error) {
+    $strictExpiryRejected = $error->httpStatus === 400
+        && $error->errorCode === 'INVALID_CURSOR';
+}
+if (!$strictExpiryRejected) {
+    failTest('Il decoder generale deve rifiutare un cursore scaduto.');
+}
+$resumedAfterExpiry = $expiryApi->handle(
+    'GET',
+    '/api/v1/export/ricovero',
+    exportQuery(
+        $datasetId,
+        ['limit' => '1', 'cursor' => $expiring->body['nextCursor']]
     ),
-    'cursore scaduto'
+    $auth
+);
+assertStatus(200, $resumedAfterExpiry, 'ripresa autenticata dopo scadenza');
+assertSameValue(
+    $expiring->body['nextCursor'],
+    $resumedAfterExpiry->body['cursor'] ?? null,
+    'checkpoint scaduto ripreso senza riscrittura'
 );
 
 // Continuation pages use the already authenticated dataset pin.  The next

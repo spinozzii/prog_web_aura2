@@ -1,5 +1,399 @@
 Set-StrictMode -Version 2.0
 
+if ($null -eq ('DriveAura.Native.ProcessSnapshot' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+
+namespace DriveAura.Native {
+    public sealed class ProcessEntry {
+        public int ProcessId { get; set; }
+        public int ParentProcessId { get; set; }
+    }
+
+    public static class ProcessSnapshot {
+        private const uint TH32CS_SNAPPROCESS = 0x00000002;
+        private static readonly IntPtr InvalidHandle = new IntPtr(-1);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct PROCESSENTRY32 {
+            public uint dwSize;
+            public uint cntUsage;
+            public uint th32ProcessID;
+            public IntPtr th32DefaultHeapID;
+            public uint th32ModuleID;
+            public uint cntThreads;
+            public uint th32ParentProcessID;
+            public int pcPriClassBase;
+            public uint dwFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string szExeFile;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint processId);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool Process32FirstW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool Process32NextW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(IntPtr handle);
+
+        public static ProcessEntry[] Read() {
+            IntPtr snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if (snapshot == InvalidHandle) {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+            try {
+                var rows = new List<ProcessEntry>();
+                var entry = new PROCESSENTRY32();
+                entry.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32));
+                if (!Process32FirstW(snapshot, ref entry)) {
+                    int error = Marshal.GetLastWin32Error();
+                    if (error == 18) {
+                        return rows.ToArray();
+                    }
+                    throw new Win32Exception(error);
+                }
+                do {
+                    rows.Add(new ProcessEntry {
+                        ProcessId = unchecked((int)entry.th32ProcessID),
+                        ParentProcessId = unchecked((int)entry.th32ParentProcessID)
+                    });
+                    entry.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32));
+                } while (Process32NextW(snapshot, ref entry));
+                return rows.ToArray();
+            } finally {
+                CloseHandle(snapshot);
+            }
+        }
+    }
+
+    public sealed class BoundedProcessResult {
+        public int ProcessId { get; set; }
+        public int ExitCode { get; set; }
+        public bool TimedOut { get; set; }
+    }
+
+    public static class BoundedProcess {
+        private const uint CREATE_SUSPENDED = 0x00000004;
+        private const uint CREATE_NO_WINDOW = 0x08000000;
+        private const uint STARTF_USESTDHANDLES = 0x00000100;
+        private const uint GENERIC_READ = 0x80000000;
+        private const uint GENERIC_WRITE = 0x40000000;
+        private const uint FILE_SHARE_READ = 0x00000001;
+        private const uint FILE_SHARE_WRITE = 0x00000002;
+        private const uint FILE_SHARE_DELETE = 0x00000004;
+        private const uint CREATE_ALWAYS = 2;
+        private const uint OPEN_EXISTING = 3;
+        private const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
+        private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
+        private const int JobObjectExtendedLimitInformation = 9;
+        private const uint WAIT_OBJECT_0 = 0;
+        private const uint WAIT_TIMEOUT = 258;
+        private static readonly IntPtr InvalidHandle = new IntPtr(-1);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SECURITY_ATTRIBUTES {
+            public int nLength;
+            public IntPtr lpSecurityDescriptor;
+            public int bInheritHandle;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct STARTUPINFO {
+            public int cb;
+            public string lpReserved;
+            public string lpDesktop;
+            public string lpTitle;
+            public uint dwX;
+            public uint dwY;
+            public uint dwXSize;
+            public uint dwYSize;
+            public uint dwXCountChars;
+            public uint dwYCountChars;
+            public uint dwFillAttribute;
+            public uint dwFlags;
+            public short wShowWindow;
+            public short cbReserved2;
+            public IntPtr lpReserved2;
+            public IntPtr hStdInput;
+            public IntPtr hStdOutput;
+            public IntPtr hStdError;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_INFORMATION {
+            public IntPtr hProcess;
+            public IntPtr hThread;
+            public uint dwProcessId;
+            public uint dwThreadId;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_BASIC_LIMIT_INFORMATION {
+            public long PerProcessUserTimeLimit;
+            public long PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize;
+            public UIntPtr MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass;
+            public uint SchedulingClass;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct IO_COUNTERS {
+            public ulong ReadOperationCount;
+            public ulong WriteOperationCount;
+            public ulong OtherOperationCount;
+            public ulong ReadTransferCount;
+            public ulong WriteTransferCount;
+            public ulong OtherTransferCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
+            public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+            public IO_COUNTERS IoInfo;
+            public UIntPtr ProcessMemoryLimit;
+            public UIntPtr JobMemoryLimit;
+            public UIntPtr PeakProcessMemoryUsed;
+            public UIntPtr PeakJobMemoryUsed;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateJobObject(IntPtr attributes, string name);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetInformationJobObject(
+            IntPtr job,
+            int infoClass,
+            IntPtr info,
+            uint length
+        );
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateFile(
+            string fileName,
+            uint desiredAccess,
+            uint shareMode,
+            ref SECURITY_ATTRIBUTES securityAttributes,
+            uint creationDisposition,
+            uint flagsAndAttributes,
+            IntPtr templateFile
+        );
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool CreateProcess(
+            string applicationName,
+            System.Text.StringBuilder commandLine,
+            IntPtr processAttributes,
+            IntPtr threadAttributes,
+            bool inheritHandles,
+            uint creationFlags,
+            IntPtr environment,
+            string currentDirectory,
+            ref STARTUPINFO startupInfo,
+            out PROCESS_INFORMATION processInformation
+        );
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint ResumeThread(IntPtr thread);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetExitCodeProcess(IntPtr process, out uint exitCode);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool TerminateProcess(IntPtr process, uint exitCode);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(IntPtr handle);
+
+        private static void ThrowLastError(string operation) {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), operation);
+        }
+
+        public static BoundedProcessResult Run(
+            string applicationName,
+            string commandLine,
+            string workingDirectory,
+            string standardOutputPath,
+            string standardErrorPath,
+            int timeoutMilliseconds
+        ) {
+            IntPtr job = IntPtr.Zero;
+            IntPtr output = IntPtr.Zero;
+            IntPtr error = IntPtr.Zero;
+            IntPtr input = IntPtr.Zero;
+            PROCESS_INFORMATION processInfo = new PROCESS_INFORMATION();
+            bool processCreated = false;
+            try {
+                job = CreateJobObject(IntPtr.Zero, null);
+                if (job == IntPtr.Zero) {
+                    ThrowLastError("CreateJobObject");
+                }
+
+                var limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+                limits.BasicLimitInformation.LimitFlags =
+                    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                int limitsSize = Marshal.SizeOf(typeof(
+                    JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+                ));
+                IntPtr limitsPointer = Marshal.AllocHGlobal(limitsSize);
+                try {
+                    Marshal.StructureToPtr(limits, limitsPointer, false);
+                    if (!SetInformationJobObject(
+                            job,
+                            JobObjectExtendedLimitInformation,
+                            limitsPointer,
+                            (uint)limitsSize
+                        )) {
+                        ThrowLastError("SetInformationJobObject");
+                    }
+                } finally {
+                    Marshal.FreeHGlobal(limitsPointer);
+                }
+
+                var security = new SECURITY_ATTRIBUTES();
+                security.nLength = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
+                security.bInheritHandle = 1;
+                uint sharing = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+                output = CreateFile(
+                    standardOutputPath,
+                    GENERIC_WRITE,
+                    sharing,
+                    ref security,
+                    CREATE_ALWAYS,
+                    FILE_ATTRIBUTE_NORMAL,
+                    IntPtr.Zero
+                );
+                if (output == InvalidHandle) {
+                    ThrowLastError("CreateFile stdout");
+                }
+                error = CreateFile(
+                    standardErrorPath,
+                    GENERIC_WRITE,
+                    sharing,
+                    ref security,
+                    CREATE_ALWAYS,
+                    FILE_ATTRIBUTE_NORMAL,
+                    IntPtr.Zero
+                );
+                if (error == InvalidHandle) {
+                    ThrowLastError("CreateFile stderr");
+                }
+                input = CreateFile(
+                    "NUL",
+                    GENERIC_READ,
+                    sharing,
+                    ref security,
+                    OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL,
+                    IntPtr.Zero
+                );
+                if (input == InvalidHandle) {
+                    ThrowLastError("CreateFile stdin");
+                }
+
+                var startup = new STARTUPINFO();
+                startup.cb = Marshal.SizeOf(typeof(STARTUPINFO));
+                startup.dwFlags = STARTF_USESTDHANDLES;
+                startup.hStdInput = input;
+                startup.hStdOutput = output;
+                startup.hStdError = error;
+                var mutableCommandLine = new System.Text.StringBuilder(commandLine);
+                if (!CreateProcess(
+                        applicationName,
+                        mutableCommandLine,
+                        IntPtr.Zero,
+                        IntPtr.Zero,
+                        true,
+                        CREATE_SUSPENDED | CREATE_NO_WINDOW,
+                        IntPtr.Zero,
+                        workingDirectory,
+                        ref startup,
+                        out processInfo
+                    )) {
+                    ThrowLastError("CreateProcess");
+                }
+                processCreated = true;
+                if (!AssignProcessToJobObject(job, processInfo.hProcess)) {
+                    ThrowLastError("AssignProcessToJobObject");
+                }
+                if (ResumeThread(processInfo.hThread) == UInt32.MaxValue) {
+                    ThrowLastError("ResumeThread");
+                }
+
+                uint wait = WaitForSingleObject(
+                    processInfo.hProcess,
+                    (uint)timeoutMilliseconds
+                );
+                if (wait == WAIT_TIMEOUT) {
+                    CloseHandle(job);
+                    job = IntPtr.Zero;
+                    WaitForSingleObject(processInfo.hProcess, 5000);
+                    return new BoundedProcessResult {
+                        ProcessId = unchecked((int)processInfo.dwProcessId),
+                        ExitCode = -1,
+                        TimedOut = true
+                    };
+                }
+                if (wait != WAIT_OBJECT_0) {
+                    ThrowLastError("WaitForSingleObject");
+                }
+                uint exitCode;
+                if (!GetExitCodeProcess(processInfo.hProcess, out exitCode)) {
+                    ThrowLastError("GetExitCodeProcess");
+                }
+                return new BoundedProcessResult {
+                    ProcessId = unchecked((int)processInfo.dwProcessId),
+                    ExitCode = unchecked((int)exitCode),
+                    TimedOut = false
+                };
+            } catch {
+                if (processCreated && processInfo.hProcess != IntPtr.Zero) {
+                    TerminateProcess(processInfo.hProcess, 1);
+                }
+                throw;
+            } finally {
+                if (job != IntPtr.Zero) {
+                    CloseHandle(job);
+                }
+                if (processInfo.hThread != IntPtr.Zero) {
+                    CloseHandle(processInfo.hThread);
+                }
+                if (processInfo.hProcess != IntPtr.Zero) {
+                    CloseHandle(processInfo.hProcess);
+                }
+                if (input != IntPtr.Zero && input != InvalidHandle) {
+                    CloseHandle(input);
+                }
+                if (error != IntPtr.Zero && error != InvalidHandle) {
+                    CloseHandle(error);
+                }
+                if (output != IntPtr.Zero && output != InvalidHandle) {
+                    CloseHandle(output);
+                }
+            }
+        }
+    }
+}
+'@
+}
+
 function Write-DriveAuraStep {
     param([Parameter(Mandatory = $true)][string]$Message)
     Write-Host ("[Drive Aura] {0}" -f $Message)
@@ -25,32 +419,354 @@ function Resolve-DriveAuraExecutable {
     return $command.Source
 }
 
+function ConvertTo-DriveAuraWindowsArgument {
+    param([AllowEmptyString()][string]$Value)
+
+    if ($null -eq $Value) {
+        $Value = ''
+    }
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"&|<>^()]') {
+        return $Value
+    }
+
+    $builder = New-Object Text.StringBuilder
+    [void]$builder.Append([char]34)
+    $backslashes = 0
+    foreach ($character in $Value.ToCharArray()) {
+        if ($character -eq [char]92) {
+            $backslashes++
+            continue
+        }
+        if ($character -eq [char]34) {
+            for ($index = 0; $index -lt (($backslashes * 2) + 1); $index++) {
+                [void]$builder.Append([char]92)
+            }
+            [void]$builder.Append([char]34)
+            $backslashes = 0
+            continue
+        }
+        for ($index = 0; $index -lt $backslashes; $index++) {
+            [void]$builder.Append([char]92)
+        }
+        $backslashes = 0
+        [void]$builder.Append($character)
+    }
+    for ($index = 0; $index -lt ($backslashes * 2); $index++) {
+        [void]$builder.Append([char]92)
+    }
+    [void]$builder.Append([char]34)
+    return $builder.ToString()
+}
+
+function ConvertTo-DriveAuraProcessPath {
+    param([Parameter(Mandatory = $true)][string]$Value)
+
+    $path = $Value.Trim().Trim([char]34)
+    if ($path.StartsWith('\??\', [StringComparison]::Ordinal)) {
+        $path = $path.Substring(4)
+    } elseif ($path.StartsWith('\\?\', [StringComparison]::Ordinal)) {
+        $path = $path.Substring(4)
+    } elseif ($path.StartsWith('\SystemRoot\', [StringComparison]::OrdinalIgnoreCase)) {
+        $path = Join-Path $env:SystemRoot $path.Substring(12)
+    }
+    try {
+        return [IO.Path]::GetFullPath($path)
+    } catch {
+        throw "Percorso processo non valido: $path"
+    }
+}
+
+function New-DriveAuraProcessIdentity {
+    param(
+        [Parameter(Mandatory = $true)][Diagnostics.Process]$Process,
+        [Parameter(Mandatory = $true)][string]$CommandMarker,
+        [string]$ExpectedExecutablePath
+    )
+
+    $Process.Refresh()
+    $path = $null
+    try {
+        $path = $Process.MainModule.FileName
+    } catch {
+        $path = $ExpectedExecutablePath
+    }
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        $path = $ExpectedExecutablePath
+    }
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        throw "Percorso del processo PID $($Process.Id) non disponibile."
+    }
+    return [pscustomobject]@{
+        pid = [int]$Process.Id
+        executablePath = ConvertTo-DriveAuraProcessPath -Value $path
+        # Windows PowerShell 5.1 may deserialize a JSON integer this large via
+        # Double and lose low-order bits. Keep the process creation FILETIME
+        # equivalent as decimal text so the PID-reuse check remains exact.
+        startedUtcTicks = ([long]$Process.StartTime.ToUniversalTime().Ticks).ToString(
+            [Globalization.CultureInfo]::InvariantCulture
+        )
+        commandMarker = $CommandMarker
+    }
+}
+
+function Test-DriveAuraProcessIdentity {
+    param(
+        [Parameter(Mandatory = $true)][psobject]$Identity,
+        [string]$Label = 'processo'
+    )
+
+    $processId = [int]$Identity.pid
+    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+    if ($null -eq $process) {
+        return $false
+    }
+    $actualPathValue = [string]$process.Path
+    if ([string]::IsNullOrWhiteSpace($actualPathValue)) {
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if ($null -eq $process) {
+            return $false
+        }
+        $actualPathValue = [string]$process.Path
+        if ([string]::IsNullOrWhiteSpace($actualPathValue)) {
+            throw "Rifiutato uso PID ${processId}: percorso $Label non disponibile."
+        }
+    }
+    $actualPath = ConvertTo-DriveAuraProcessPath -Value $actualPathValue
+    $expectedPath = ConvertTo-DriveAuraProcessPath -Value ([string]$Identity.executablePath)
+    $actualTicks = [long]$process.StartTime.ToUniversalTime().Ticks
+    $expectedTicks = [long]$Identity.startedUtcTicks
+    if (-not $actualPath.Equals($expectedPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw ("Rifiutato uso PID {0}: percorso {1} non coincidente." -f
+            $processId, $Label)
+    }
+    if ($actualTicks -ne $expectedTicks) {
+        throw ("Rifiutato uso PID {0}: istante di avvio {1} non coincidente." -f
+            $processId, $Label)
+    }
+    return $true
+}
+
+function Stop-DriveAuraOwnedProcessTree {
+    param(
+        [Parameter(Mandatory = $true)][psobject]$Identity,
+        [string]$Label = 'processo',
+        [ValidateRange(1, 15)][int]$TimeoutSeconds = 5
+    )
+
+    if (-not (Test-DriveAuraProcessIdentity -Identity $Identity -Label $Label)) {
+        return
+    }
+
+    $rootId = [int]$Identity.pid
+    $rootTicks = [long]$Identity.startedUtcTicks
+    $depthByPid = @{}
+    $depthByPid[$rootId] = 0
+    $snapshot = @([DriveAura.Native.ProcessSnapshot]::Read())
+    for ($round = 0; $round -lt $snapshot.Count; $round++) {
+        $changed = $false
+        foreach ($row in $snapshot) {
+            $processId = [int]$row.ProcessId
+            $parentId = [int]$row.ParentProcessId
+            if (-not $depthByPid.ContainsKey($processId) -and
+                $depthByPid.ContainsKey($parentId)) {
+                $depthByPid[$processId] = [int]$depthByPid[$parentId] + 1
+                $changed = $true
+            }
+        }
+        if (-not $changed) {
+            break
+        }
+    }
+
+    $owned = New-Object System.Collections.Generic.List[object]
+    foreach ($processId in $depthByPid.Keys) {
+        $process = Get-Process -Id ([int]$processId) -ErrorAction SilentlyContinue
+        if ($null -eq $process) {
+            continue
+        }
+        $startedTicks = [long]$process.StartTime.ToUniversalTime().Ticks
+        if ([int]$processId -ne $rootId -and $startedTicks -lt $rootTicks) {
+            throw "Rifiutato arresto PID ${processId}: discendente $Label con istante non valido."
+        }
+        $path = [string]$process.Path
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            $process = Get-Process -Id ([int]$processId) -ErrorAction SilentlyContinue
+            if ($null -eq $process) {
+                continue
+            }
+            $path = [string]$process.Path
+            if ([string]::IsNullOrWhiteSpace($path)) {
+                Write-Warning (
+                    "Discendente PID $processId non arrestato direttamente: " +
+                    'percorso non disponibile; saranno verificati radice e porte.'
+                )
+                continue
+            }
+        }
+        $entryIdentity = [pscustomobject]@{
+            pid = [int]$processId
+            executablePath = ConvertTo-DriveAuraProcessPath -Value $path
+            startedUtcTicks = $startedTicks.ToString(
+                [Globalization.CultureInfo]::InvariantCulture
+            )
+            commandMarker = if ([int]$processId -eq $rootId) {
+                [string]$Identity.commandMarker
+            } else {
+                "discendente del PID $rootId"
+            }
+        }
+        Test-DriveAuraProcessIdentity -Identity $entryIdentity -Label $Label | Out-Null
+        $owned.Add([pscustomobject]@{
+                Identity = $entryIdentity
+                Depth = [int]$depthByPid[[int]$processId]
+            })
+    }
+
+    foreach ($entry in @($owned | Sort-Object Depth -Descending)) {
+        $entryIdentity = $entry.Identity
+        if (Test-DriveAuraProcessIdentity -Identity $entryIdentity -Label $Label) {
+            Stop-Process -Id ([int]$entryIdentity.pid) -Force -ErrorAction Stop
+        }
+    }
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $stillOwned = @(
+            foreach ($entry in $owned) {
+                try {
+                    if (Test-DriveAuraProcessIdentity `
+                            -Identity $entry.Identity -Label $Label) {
+                        $entry.Identity
+                    }
+                } catch {
+                    # Un PID riutilizzato non appartiene piu all'albero arrestato.
+                }
+            }
+        )
+        if ($stillOwned.Count -eq 0) {
+            return
+        }
+        Start-Sleep -Milliseconds 100
+    }
+    throw "Albero $Label ancora attivo dopo $TimeoutSeconds secondi."
+}
+
+function Start-DriveAuraManagedProcess {
+    param(
+        [Parameter(Mandatory = $true)][string]$WrapperPath,
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory
+    )
+
+    $wrapper = (Resolve-Path -LiteralPath $WrapperPath -ErrorAction Stop).Path
+    $working = (Resolve-Path -LiteralPath $WorkingDirectory -ErrorAction Stop).Path
+    if ($wrapper.Contains('%')) {
+        throw (
+            "Percorso script non supportato: il carattere % verrebbe espanso da cmd.exe. " +
+            'Usare una directory senza %.'
+        )
+    }
+    $startInfo = New-Object Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $env:ComSpec
+    $startInfo.Arguments = '/d /q /v:off /s /c "' +
+        (ConvertTo-DriveAuraWindowsArgument -Value $wrapper) + '"'
+    $startInfo.WorkingDirectory = $working
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            throw "Avvio del processo gestito non riuscito: $wrapper"
+        }
+        return New-DriveAuraProcessIdentity -Process $process -CommandMarker $wrapper `
+            -ExpectedExecutablePath $env:ComSpec
+    } finally {
+        $process.Dispose()
+    }
+}
+
 function Invoke-DriveAuraExternal {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
         [string[]]$Arguments = @(),
-        [switch]$AllowFailure
+        [switch]$AllowFailure,
+        [ValidateRange(1, 300)][int]$TimeoutSeconds = 60
     )
 
-    $previousErrorActionPreference = $ErrorActionPreference
+    $resolved = Resolve-DriveAuraExecutable -Value $FilePath -Label 'Comando esterno'
+    $commandArguments = @(
+        foreach ($argument in $Arguments) {
+            ConvertTo-DriveAuraWindowsArgument -Value ([string]$argument)
+        }
+    ) -join ' '
+    $extension = [IO.Path]::GetExtension($resolved)
+    if ($extension -ieq '.bat' -or $extension -ieq '.cmd') {
+        if ($resolved.Contains('%')) {
+            throw (
+                "Percorso script non supportato: il carattere % verrebbe espanso da cmd.exe. " +
+                'Usare una directory senza %.'
+            )
+        }
+        $batchLine = ConvertTo-DriveAuraWindowsArgument -Value $resolved
+        if (-not [string]::IsNullOrWhiteSpace($commandArguments)) {
+            $batchLine += ' ' + $commandArguments
+        }
+        $application = $env:ComSpec
+        $nativeArguments = '/d /v:off /s /c "' + $batchLine + '"'
+    } else {
+        $application = $resolved
+        $nativeArguments = $commandArguments
+    }
+    $commandLine = ConvertTo-DriveAuraWindowsArgument -Value $application
+    if (-not [string]::IsNullOrWhiteSpace($nativeArguments)) {
+        $commandLine += ' ' + $nativeArguments
+    }
+    $temporaryStem = Join-Path ([IO.Path]::GetTempPath()) (
+        'drive-aura-external-' + [guid]::NewGuid().ToString('N')
+    )
+    $stdoutPath = $temporaryStem + '.out'
+    $stderrPath = $temporaryStem + '.err'
+    $nativeResult = $null
+    $stdout = ''
+    $stderr = ''
     try {
-        # Windows PowerShell 5.1 represents native stderr as ErrorRecord objects.
-        # Capture them as ordinary command output and decide solely from the exit code.
-        $ErrorActionPreference = 'Continue'
-        $output = @(& $FilePath @Arguments 2>&1)
-        $exitCode = $LASTEXITCODE
+        $nativeResult = [DriveAura.Native.BoundedProcess]::Run(
+            $application,
+            $commandLine,
+            (Get-Location).Path,
+            $stdoutPath,
+            $stderrPath,
+            $TimeoutSeconds * 1000
+        )
+        if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+            $stdout = [IO.File]::ReadAllText($stdoutPath, [Text.Encoding]::Default)
+        }
+        if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            $stderr = [IO.File]::ReadAllText($stderrPath, [Text.Encoding]::Default)
+        }
     } finally {
-        $ErrorActionPreference = $previousErrorActionPreference
+        Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
     }
-    if ($null -eq $exitCode) {
-        $exitCode = 0
+
+    $parts = @()
+    if (-not [string]::IsNullOrWhiteSpace($stdout)) {
+        $parts += $stdout.TrimEnd("`r", "`n")
     }
+    if (-not [string]::IsNullOrWhiteSpace($stderr)) {
+        $parts += $stderr.TrimEnd("`r", "`n")
+    }
+    $output = $parts -join [Environment]::NewLine
+    if ($nativeResult.TimedOut) {
+        throw ("Timeout di {0} secondi per il comando esterno {1}: {2}" -f
+            $TimeoutSeconds, [IO.Path]::GetFileName($resolved), $output)
+    }
+    $exitCode = [int]$nativeResult.ExitCode
     if (-not $AllowFailure -and $exitCode -ne 0) {
-        throw ("Comando non riuscito ({0}): {1}" -f $exitCode, ($output -join [Environment]::NewLine))
+        throw ("Comando non riuscito ({0}): {1}" -f $exitCode, $output)
     }
     return [pscustomobject]@{
         ExitCode = [int]$exitCode
-        Output = ($output -join [Environment]::NewLine)
+        Output = $output
     }
 }
 
@@ -316,18 +1032,48 @@ function Assert-DriveAuraPortAvailable {
     }
 }
 
+function Assert-DriveAuraRemoteUrl {
+    param([Parameter(Mandatory = $true)][string]$Value)
+
+    $uri = $null
+    if (-not [Uri]::TryCreate($Value, [UriKind]::Absolute, [ref]$uri) -or
+        ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https') -or
+        [string]::IsNullOrWhiteSpace($uri.Host) -or
+        -not [string]::IsNullOrEmpty($uri.UserInfo) -or
+        -not [string]::IsNullOrEmpty($uri.Query) -or
+        -not [string]::IsNullOrEmpty($uri.Fragment)) {
+        throw 'RemoteApiUrl deve essere un URL HTTP o HTTPS assoluto senza credenziali, query o frammento.'
+    }
+    if ($uri.Scheme -eq 'http' -and -not $uri.IsLoopback) {
+        throw 'RemoteApiUrl richiede HTTPS; HTTP e ammesso soltanto su loopback.'
+    }
+    return $uri
+}
+
 function Wait-DriveAuraHealth {
     param(
         [Parameter(Mandatory = $true)][string]$BaseUrl,
         [Parameter(Mandatory = $true)][string]$ExpectedService,
-        [int]$TimeoutSeconds = 30
+        [ValidateRange(1, 300)][int]$TimeoutSeconds = 30,
+        [psobject]$ProcessIdentity,
+        [string]$ProcessLabel = 'servizio'
     )
 
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     $lastError = $null
     while ([DateTime]::UtcNow -lt $deadline) {
+        if ($null -ne $ProcessIdentity -and
+            -not (Test-DriveAuraProcessIdentity -Identity $ProcessIdentity -Label $ProcessLabel)) {
+            throw "$ProcessLabel terminato prima della readiness $ExpectedService."
+        }
         try {
-            $response = Invoke-RestMethod -Method Get -Uri ($BaseUrl.TrimEnd('/') + '/health') -TimeoutSec 3
+            $remaining = [Math]::Max(
+                1,
+                [Math]::Ceiling(($deadline - [DateTime]::UtcNow).TotalSeconds)
+            )
+            $requestTimeout = [Math]::Min(3, [int]$remaining)
+            $response = Invoke-RestMethod -Method Get `
+                -Uri ($BaseUrl.TrimEnd('/') + '/health') -TimeoutSec $requestTimeout
             if ($response.apiVersion -eq '1.0' -and
                 $response.service -eq $ExpectedService -and
                 $response.status -eq 'ok') {
@@ -588,6 +1334,48 @@ function Restore-DriveAuraProcessEnvironment {
     }
 }
 
+function Repair-DriveAuraPathEnvironment {
+    $environment = [Environment]::GetEnvironmentVariables('Process')
+    $pathNames = @(
+        $environment.Keys |
+            Where-Object {
+                [string]::Equals(
+                    [string]$_,
+                    'Path',
+                    [StringComparison]::OrdinalIgnoreCase
+                )
+            } |
+            Sort-Object {
+                if ([string]$_ -ceq 'Path') { 0 } else { 1 }
+            }, {
+                [string]$_
+            }
+    )
+    if ($pathNames.Count -le 1) {
+        return $false
+    }
+
+    # Windows accepts duplicate environment names that differ only by case, but
+    # Windows PowerShell Start-Process rejects that environment block. Preserve
+    # every distinct path segment while reducing the aliases to one canonical key.
+    $segments = New-Object System.Collections.Generic.List[string]
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' (
+        [StringComparer]::OrdinalIgnoreCase
+    )
+    foreach ($name in $pathNames) {
+        foreach ($segment in ([string]$environment[$name] -split ';')) {
+            if (-not [string]::IsNullOrWhiteSpace($segment) -and $seen.Add($segment)) {
+                $segments.Add($segment)
+            }
+        }
+    }
+    foreach ($name in $pathNames) {
+        [Environment]::SetEnvironmentVariable([string]$name, $null, 'Process')
+    }
+    [Environment]::SetEnvironmentVariable('Path', ($segments -join ';'), 'Process')
+    return $true
+}
+
 function Get-DriveAuraProcessCommandLine {
     param([Parameter(Mandatory = $true)][int]$ProcessId)
     try {
@@ -603,6 +1391,10 @@ Export-ModuleMember -Function @(
     'Write-DriveAuraStep',
     'Resolve-DriveAuraExecutable',
     'Invoke-DriveAuraExternal',
+    'New-DriveAuraProcessIdentity',
+    'Test-DriveAuraProcessIdentity',
+    'Stop-DriveAuraOwnedProcessTree',
+    'Start-DriveAuraManagedProcess',
     'Get-DriveAuraPythonRuntime',
     'Get-DriveAuraJavaRuntime',
     'Assert-DriveAuraJavaTomcatCompatibility',
@@ -612,6 +1404,7 @@ Export-ModuleMember -Function @(
     'Assert-DriveAuraIdentifier',
     'Assert-DriveAuraSecrets',
     'Assert-DriveAuraPortAvailable',
+    'Assert-DriveAuraRemoteUrl',
     'Wait-DriveAuraHealth',
     'Test-DriveAuraWheelhouse',
     'Test-DriveAuraPostgresReady',
@@ -622,5 +1415,6 @@ Export-ModuleMember -Function @(
     'Get-DriveAuraState',
     'Set-DriveAuraProcessEnvironment',
     'Restore-DriveAuraProcessEnvironment',
+    'Repair-DriveAuraPathEnvironment',
     'Get-DriveAuraProcessCommandLine'
 )

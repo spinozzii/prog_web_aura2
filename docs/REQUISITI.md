@@ -2,11 +2,11 @@
 
 ## 1. Fonti
 
-Fonti normative:
+Fonti normative, con percorsi relativi alla radice del Progetto 2:
 
 1. `../PW - Linee Guida Progetto #2 (2).pdf`;
 2. schema e dataset del Progetto 1 in
-   `../../../progetto 1/drive-aura-51-servizio-sanitario`;
+   `../../progetto 1/drive-aura-51-servizio-sanitario`;
 3. indicazioni del docente riportate nella review conservata con il Progetto 1.
 
 In caso di conflitto prevalgono le linee guida del Progetto 2. Un'ambiguità non
@@ -172,4 +172,3 @@ L'email deve:
 - penalità di 0,5 punti per installazione/verifica oltre cinque minuti;
 - penalità di 0,5 punti se il docente deve chiedere chiarimenti perché il
   manuale non consente la verifica.
-

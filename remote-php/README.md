@@ -46,6 +46,12 @@ tupla delle chiavi composte; il cursore opaco contiene la tupla tipizzata ed è
 autenticato con HMAC. La sorgente fixture vive sotto `tests` e non viene
 caricata dal front controller.
 
+La scadenza limita l'uso ordinario del cursore. Un export già autenticato può
+però riprendere un checkpoint persistito anche dopo la scadenza nominale:
+firma HMAC, entità e `datasetId` devono restare validi e il cursore originale
+viene inoltrato invariato a Django. In questo modo un riavvio tardivo non
+invalida il checkpoint autorevole.
+
 `datasetId` è obbligatorio per l'export. Alla prima pagina di ogni entità il
 servizio ricalcola l'identità globale e rifiuta con `DATASET_CHANGED` una
 sorgente diversa dal manifest fissato. Le pagine successive usano il cursore

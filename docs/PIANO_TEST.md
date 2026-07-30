@@ -214,3 +214,22 @@ Tomcat 9.0.120 ha superato la stessa verticale in 38,822 secondi. Sono passati
 16 casi avversi, runner completo, controlli migrazioni, build Maven e audit
 dell'archivio. I PDF A4 finali sono stati renderizzati e ispezionati pagina per
 pagina. Dettagli, limiti e hash sono in `docs/VERIFICA_T09.md`.
+
+## 10. Esito osservato per T11
+
+Il 30 luglio 2026 l'audit finale ha ripetuto la prova da una nuova copia del
+pacchetto finale con watchdog finiti e PostgreSQL reale. Tomcat 9.0.120 ha
+completato in 45,619 secondi wall-clock; Tomcat 11.0.24 ha completato in
+46,427 secondi. Entrambi hanno trasferito 22 righe in 22 lotti, superato il
+rilancio idempotente e liberato tutte le porte.
+
+Sono passati il runner rigoroso, la semantica `-AllowPartial`, 27 casi
+installer, 5 test del mock remoto, 25 test Django, i controlli migrazioni su
+PostgreSQL, il lint dei 18 file PHP e `mvn clean package`. Le evidenze massive,
+il dump e gli otto digest sono stati ricalcolati senza ripetere la migrazione
+costosa già osservata in T07.
+
+Due build consecutive dello ZIP hanno prodotto 12.842.104 byte e SHA-256
+`0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea`.
+Tutte le pagine dei due PDF sono state nuovamente renderizzate e ispezionate.
+Dettagli, correzioni e limiti sono in `docs/VERIFICA_T11.md`.
