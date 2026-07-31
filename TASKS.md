@@ -2,23 +2,34 @@
 
 ## AUTORIZZATA
 
-- [ ] **T12 - Branch GitHub minimale di consegna**
-  - preservare `main` come repository tecnico completo;
-  - creare il branch orfano `consegna`, senza ereditarne cronologia o file di
-    sviluppo;
-  - pubblicare alla radice del branch soltanto
-    `drive-aura-51-offline.zip` e `drive-aura-51-offline.zip.sha256`, copiati
-    byte per byte dal candidato verificato in `dist`;
-  - non includere `.gitignore`, sorgenti sciolti, documenti duplicati, log,
-    cache, configurazioni locali o altri file;
-  - verificare dimensione, checksum, contenuto esatto del branch remoto e
-    possibilità di tornare a `main` senza modifiche.
+Nessuna.
 
 ## BACKLOG
 
 Nessuna.
 
 ## IN REVISIONE
+
+- [ ] **T12 - Branch GitHub minimale di consegna**
+  - salvata e pubblicata l'autorizzazione Work su `main` nel commit
+    `2b86cb85887883b288898b993d286c496351f796`;
+  - pubblicato `origin/consegna` sul commit orfano
+    `2e67fcebe01f090e175b74b7ca79405e39b13c77`, senza genitori e con una sola
+    revisione nella propria cronologia;
+  - il tree remoto contiene esattamente `drive-aura-51-offline.zip` e
+    `drive-aura-51-offline.zip.sha256` alla radice, senza `.gitignore` o altri
+    file;
+  - ZIP remoto e sorgente `dist` coincidono byte per byte: 12.855.976 byte,
+    SHA-256
+    `1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`;
+  - sidecar remoto byte-identico, con digest e nome del file corretti;
+  - riconfermati 117 file/115 payload, 2 WAR, 7 wheel e 2 PDF, senza segreti,
+    cache, log, `target`, runtime o configurazioni locali; i 109 payload
+    appartenevano al candidato storico T11 e non al candidato T11.1 richiesto;
+  - `main` è rimasto il repository tecnico completo e il Progetto 1 è rimasto
+    invariato; nessuna email è stata inviata, non sono state create pull
+    request, release o distribuzioni e non sono stati creati tag;
+  - in attesa della revisione Work.
 
 - [ ] **T11.1 - Correzione attese indefinite e verifica finale di consegnabilità**
   - eliminate le attese indefinite note: processi esterni limitati, cleanup

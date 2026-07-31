@@ -10,10 +10,44 @@ completate. T11 e T11.1 hanno concluso gli audit tecnici e sono in revisione
 Work. Il verdetto tecnico T11.1 è `CONSEGNABILE`, con la sola pubblicazione
 Altervista non verificata perché esclusa dall'autorizzazione.
 
-T12 è l'unica attività autorizzata. Deve creare su GitHub un branch orfano
-`consegna` contenente esclusivamente i due allegati indicati nella bozza email:
-lo ZIP finale e il relativo sidecar SHA-256. `main` deve restare il repository
-tecnico completo e non deve perdere file o cronologia.
+T12 ha pubblicato su GitHub il branch orfano `consegna` ed è in revisione
+Work. Il branch contiene esclusivamente i due allegati indicati nella bozza
+email; `main` è rimasto il repository tecnico completo. Non è autorizzata
+alcuna attività successiva.
+
+## Esito T12
+
+- L'autorizzazione Work è stata salvata e pubblicata su `main` nel commit
+  `2b86cb85887883b288898b993d286c496351f796` prima di creare il branch di
+  consegna.
+- `origin/consegna` punta al commit
+  `2e67fcebe01f090e175b74b7ca79405e39b13c77`. `rev-list --parents` non
+  riporta genitori e la cronologia contiene un solo commit: il branch è
+  realmente orfano e non eredita alcuna revisione da `main`.
+- Il tree Git remoto contiene, entrambi alla radice, esattamente:
+  `drive-aura-51-offline.zip` e `drive-aura-51-offline.zip.sha256`. Non sono
+  presenti `.gitignore`, README, documenti, directory o file aggiuntivi.
+- Il blob ZIP remoto è `3c3f14908cdd71f10bc98c5600d39fc51288fe2b` e
+  quello del sidecar è `0076bae35bed53bfaccf32d9c1f7ad64006ccef4`;
+  coincidono con gli object ID calcolati sui due file in `dist`, quindi il
+  confronto byte per byte è superato.
+- Lo ZIP estratto dal riferimento remoto misura 12.855.976 byte, si apre e ha
+  SHA-256
+  `1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
+  Il sidecar remoto è byte-identico e riporta lo stesso digest seguito dal
+  nome `drive-aura-51-offline.zip`.
+- La nuova estrazione corta ha superato `Test-PackageIntegrity.ps1`: 117 file
+  totali, 115 payload nel manifest, 2 WAR, 7 wheel e 2 PDF. Scansioni di
+  denylist e 104 file testuali non hanno trovato segreti, cache, log,
+  `target`, runtime o configurazioni locali.
+- Il valore di 109 payload appartiene al candidato storico T11 da 12.842.104
+  byte. Il candidato T11.1 identificato in modo univoco dalla dimensione e
+  dall'hash richiesti contiene 115 payload; per questo non è stato rigenerato
+  né modificato.
+- La pubblicazione del ramo orfano non ha cambiato checkout, indice, file o
+  cronologia di `main`. Il Progetto 1 è rimasto invariato. Non sono state
+  inviate email, non sono state create pull request, release o distribuzioni
+  Altervista e non sono stati creati tag.
 
 ## Revisione Work successiva a T11
 
@@ -426,6 +460,7 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T11.1. `AUTORIZZATA` è `Nessuna`; l'email resta
-una bozza e non deve essere inviata automaticamente. Non distribuire su
-Altervista e non creare tag o release senza una nuova autorizzazione.
+Attendere la revisione Work di T12. `AUTORIZZATA` è `Nessuna`; l'email resta
+una bozza e non deve essere inviata automaticamente. Non unire `consegna` in
+`main`, non distribuire su Altervista e non creare tag o release senza una
+nuova autorizzazione.
