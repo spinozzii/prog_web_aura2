@@ -7,9 +7,13 @@ intermedia e servizio Django locale verso PostgreSQL.
 
 T00, T01, T01.1, T01.2, T02.1, T02.2, T03, T07, T09 e T09.1 sono
 completate. T11 e T11.1 hanno concluso gli audit tecnici e sono in revisione
-Work. Non è autorizzata alcuna attività successiva. Il verdetto tecnico T11.1
-è `CONSEGNABILE`, con la sola pubblicazione Altervista non verificata perché
-esclusa dall'autorizzazione.
+Work. Il verdetto tecnico T11.1 è `CONSEGNABILE`, con la sola pubblicazione
+Altervista non verificata perché esclusa dall'autorizzazione.
+
+T12 è l'unica attività autorizzata. Deve creare su GitHub un branch orfano
+`consegna` contenente esclusivamente i due allegati indicati nella bozza email:
+lo ZIP finale e il relativo sidecar SHA-256. `main` deve restare il repository
+tecnico completo e non deve perdere file o cronologia.
 
 ## Revisione Work successiva a T11
 

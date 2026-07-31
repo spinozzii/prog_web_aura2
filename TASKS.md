@@ -2,7 +2,17 @@
 
 ## AUTORIZZATA
 
-Nessuna.
+- [ ] **T12 - Branch GitHub minimale di consegna**
+  - preservare `main` come repository tecnico completo;
+  - creare il branch orfano `consegna`, senza ereditarne cronologia o file di
+    sviluppo;
+  - pubblicare alla radice del branch soltanto
+    `drive-aura-51-offline.zip` e `drive-aura-51-offline.zip.sha256`, copiati
+    byte per byte dal candidato verificato in `dist`;
+  - non includere `.gitignore`, sorgenti sciolti, documenti duplicati, log,
+    cache, configurazioni locali o altri file;
+  - verificare dimensione, checksum, contenuto esatto del branch remoto e
+    possibilità di tornare a `main` senza modifiche.
 
 ## BACKLOG
 
