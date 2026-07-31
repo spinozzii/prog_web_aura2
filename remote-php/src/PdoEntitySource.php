@@ -18,23 +18,34 @@ final class PdoEntitySource implements EntitySource
     /** @var array{dsn: mixed, user: mixed, password: mixed}|null */
     private ?array $connectionConfig;
 
+    private PdoTimeoutPolicy $timeoutPolicy;
+
     /** @param array{dsn: mixed, user: mixed, password: mixed}|null $connectionConfig */
-    public function __construct(?PDO $pdo = null, ?array $connectionConfig = null)
+    public function __construct(
+        ?PDO $pdo = null,
+        ?array $connectionConfig = null,
+        ?PdoTimeoutPolicy $timeoutPolicy = null
+    )
     {
         if (($pdo === null) === ($connectionConfig === null)) {
             throw new \InvalidArgumentException('Configurare PDO oppure i parametri di connessione.');
         }
         $this->pdo = $pdo;
         $this->connectionConfig = $connectionConfig;
+        $this->timeoutPolicy = $timeoutPolicy ?? PdoTimeoutPolicy::fromArray([]);
     }
 
     public static function fromEnvironment(): self
     {
-        return new self(null, [
-            'dsn' => getenv('REMOTE_DB_DSN'),
-            'user' => getenv('REMOTE_DB_USER'),
-            'password' => getenv('REMOTE_DB_PASSWORD'),
-        ]);
+        return new self(
+            null,
+            [
+                'dsn' => getenv('REMOTE_DB_DSN'),
+                'user' => getenv('REMOTE_DB_USER'),
+                'password' => getenv('REMOTE_DB_PASSWORD'),
+            ],
+            PdoTimeoutPolicy::fromEnvironment()
+        );
     }
 
     public function allRows(EntitySchema $schema): array
@@ -159,7 +170,9 @@ final class PdoEntitySource implements EntitySource
         ?array $after
     ): array {
         try {
-            $statement = $this->connection()->prepare($sql);
+            $connection = $this->connection();
+            $limitedSql = $this->timeoutPolicy->limitSelect($connection, $sql);
+            $statement = $connection->prepare($limitedSql);
             foreach ($parameters as $placeholder => [$value, $type]) {
                 $statement->bindValue($placeholder, $value, $type);
             }
@@ -209,7 +222,7 @@ final class PdoEntitySource implements EntitySource
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
                     PDO::ATTR_STRINGIFY_FETCHES => false,
-                ]
+                ] + $this->timeoutPolicy->connectionOptions()
             );
         } catch (\Throwable) {
             throw new ApiException(

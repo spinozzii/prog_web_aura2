@@ -10,6 +10,28 @@ Nessuna.
 
 ## IN REVISIONE
 
+- [ ] **T11.1 - Correzione attese indefinite e verifica finale di consegnabilità**
+  - eliminate le attese indefinite note: processi esterni limitati, cleanup
+    per identità e guardia AST contro `WaitForExit()` senza timeout;
+  - aggiunti e validati timeout PostgreSQL per connessione, lock, query e
+    transazioni inattive, con prova reale di rollback e ripresa;
+  - aggiunti timeout PDO distinti per connessione/query, rilevamento
+    MariaDB/MySQL fail-closed e prova reale di query lenta/host irraggiungibile;
+  - Maven esegue tre test Java reali e una falsa asserzione temporanea rende la
+    build non riuscita;
+  - reso evidente `C:\DriveAura51` e verificato il rifiuto preventivo dei
+    percorsi troppo lunghi;
+  - superati runner, 21 lint PHP, 5 comandi test PHP, 29 test Django, controlli
+    PostgreSQL, 31 casi installer, 6 test mock e build dei due WAR;
+  - superate prove finali offline in 42,732 s con Tomcat 11 e 43,334 s con
+    Tomcat 9, entrambe con 22 righe/22 lotti, idempotenza e cleanup;
+  - candidato riproducibile: 12.855.976 byte, 117 entry/115 payload, SHA-256
+    `1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`;
+  - PDF A4 di 3+1 pagine rigenerati e controllati visivamente; Progetto 1
+    invariato, nessuna distribuzione, email, release o tag;
+  - rapporto `docs/VERIFICA_T11_1.md`: verdetto tecnico `CONSEGNABILE`;
+  - in attesa della revisione Work.
+
 - [ ] **T11 - Audit finale e pacchetto di consegna**
   - eseguito l'audit conclusivo rispetto a requisiti, checklist, piano test e
     linee guida originali;
@@ -27,7 +49,7 @@ Nessuna.
     documento A4 di una pagina;
   - completati checklist, rapporto `docs/VERIFICA_T11.md` e bozza email, senza
     distribuzione Altervista, invio, tag o release;
-  - candidato finale: 12.842.104 byte, SHA-256
+  - candidato T11, ora storico: 12.842.104 byte, SHA-256
     `0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea`;
   - in attesa della revisione Work.
 

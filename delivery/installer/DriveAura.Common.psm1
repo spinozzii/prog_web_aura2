@@ -1380,7 +1380,7 @@ function Get-DriveAuraProcessCommandLine {
     param([Parameter(Mandatory = $true)][int]$ProcessId)
     try {
         $process = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $ProcessId" `
-            -ErrorAction Stop
+            -OperationTimeoutSec 3 -ErrorAction Stop
         return [string]$process.CommandLine
     } catch {
         return ''

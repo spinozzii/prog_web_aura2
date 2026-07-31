@@ -9,6 +9,7 @@ require_once __DIR__ . '/../src/EntitySchema.php';
 require_once __DIR__ . '/../src/SchemaRegistry.php';
 require_once __DIR__ . '/../src/EntityCanonicalizer.php';
 require_once __DIR__ . '/../src/EntitySource.php';
+require_once __DIR__ . '/../src/PdoTimeoutPolicy.php';
 require_once __DIR__ . '/../src/PdoEntitySource.php';
 require_once __DIR__ . '/../src/DatasetIdentity.php';
 require_once __DIR__ . '/../src/CursorCodec.php';

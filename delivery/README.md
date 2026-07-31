@@ -15,6 +15,15 @@ un compilatore Java. Deve avere:
 Leggere prima `pdf/manuale-drive-aura-51.pdf`. Non inserire segreti nei file
 del pacchetto: impostarli soltanto nella sessione PowerShell.
 
+## Estrarre in una radice corta
+
+Estrarre direttamente in `C:\DriveAura51`. PowerShell 5.1 può fallire già
+durante `Expand-Archive` se la directory padre è molto lunga. Gli script di
+integrità e configurazione controllano subito il budget dei percorsi e, se non
+è sufficiente, chiedono di riestrarre in `C:\DriveAura51`; non spostano né
+cancellano file. Questo controllo protegge le copie e l'installazione, ma non
+può prevenire un errore avvenuto prima, mentre lo ZIP viene estratto.
+
 ## Controllo immediato
 
 ```powershell

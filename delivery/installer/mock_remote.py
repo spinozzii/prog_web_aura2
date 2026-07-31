@@ -255,6 +255,17 @@ class OfflineRemoteServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = False
 
+    def handle_error(self, request: object, client_address: object) -> None:
+        # Port/readiness probes may connect and close before sending an HTTP
+        # request. That is an expected disconnect, not a server failure worth
+        # a traceback in the installation log.
+        if isinstance(
+            sys.exception(),
+            (BrokenPipeError, ConnectionAbortedError, ConnectionResetError),
+        ):
+            return
+        super().handle_error(request, client_address)
+
     def __init__(
         self,
         server_address: tuple[str, int],

@@ -1,6 +1,6 @@
 # Checklist del docente
 
-Stato verificato nell'audit T11 del 30 luglio 2026. Le caselle non selezionate
+Stato verificato nell'audit T11.1 del 31 luglio 2026. Le caselle non selezionate
 sono operazioni proprie dell'invio dell'email, che non è stato eseguito.
 
 ## Scelta e architettura
@@ -40,6 +40,10 @@ sono operazioni proprie dell'invio dell'email, che non è stato eseguito.
 - [x] Trasporto, validazione, orchestrazione e persistenza sono separati.
 - [x] Gli errori HTTP non mostrano stack trace, query o percorsi.
 - [x] I test automatici sono inclusi ed eseguibili.
+- [x] Non risultano attese indefinite note; una guardia AST rifiuta
+      `WaitForExit()` senza timeout negli script PowerShell.
+- [x] PostgreSQL e PHP/PDO applicano timeout finiti, configurabili e validati.
+- [x] `mvn clean test` rileva ed esegue realmente tre contratti Java.
 
 ## Compatibilità
 
@@ -62,6 +66,8 @@ sono operazioni proprie dell'invio dell'email, che non è stato eseguito.
 - [x] I casi avversi hanno diagnosi e soluzione.
 - [x] Non viene dato nulla per scontato.
 - [x] Il comando di verifica prova davvero i tre servizi e il database.
+- [x] Un percorso Windows troppo lungo viene rifiutato prima della copia o
+      dell'installazione con indicazione di riestrarre in `C:\DriveAura51`.
 
 ## Documentazione
 

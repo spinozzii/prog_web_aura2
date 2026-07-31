@@ -134,6 +134,18 @@ Motivazione: l'integrità dell'archivio deve restare ricontrollabile dopo
 l'installazione e la prova rapida non deve contaminare la destinazione della
 migrazione reale.
 
+### D17 - Deadline finite e radice Windows corta
+
+Processi esterni, readiness, HTTP e database applicano timeout configurabili e
+cleanup mirato. PostgreSQL limita connessione, lock, query e transazioni
+inattive; PHP limita separatamente connessione PDO e `SELECT` lato server. Il
+pacchetto deve essere estratto in `C:\DriveAura51` e gli script rifiutano una
+radice che non lascia un margine prudenziale ai percorsi più lunghi.
+
+Motivazione: nessun errore di rete, lock o processo deve trattenere
+indefinitamente il collaudo; PowerShell 5.1 deve inoltre diagnosticare i
+percorsi troppo lunghi prima della copia o dell'installazione.
+
 ## Decisioni aperte
 
 - limite dei lotti da adottare sull'eventuale ambiente Altervista;

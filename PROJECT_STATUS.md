@@ -6,7 +6,71 @@ La scelta B è approvata: migrazione tramite servizio PHP remoto, servlet Java
 intermedia e servizio Django locale verso PostgreSQL.
 
 T00, T01, T01.1, T01.2, T02.1, T02.2, T03, T07, T09 e T09.1 sono
-completate. T11 ha concluso l'audit tecnico ed è in revisione Work.
+completate. T11 e T11.1 hanno concluso gli audit tecnici e sono in revisione
+Work. Non è autorizzata alcuna attività successiva. Il verdetto tecnico T11.1
+è `CONSEGNABILE`, con la sola pubblicazione Altervista non verificata perché
+esclusa dall'autorizzazione.
+
+## Revisione Work successiva a T11
+
+La revisione del commit
+`406b9976a2236f7fbb091e417309ba312dccf66a` ha riconfermato runner completo,
+25 test Django, build Maven dei due WAR, integrità del candidato e 27 casi
+installer. Sono rimasti da correggere prima della consegna:
+
+- `delivery/tests/Test-Installer.ps1` usa un `WaitForExit()` senza timeout;
+- Django/PostgreSQL non configura scadenze esplicite per connessione, query e
+  lock, quindi una risorsa bloccata può trattenere una richiesta;
+- PHP/PDO non esplicita limiti di connessione e query compatibili con la
+  sorgente MySQL/MariaDB;
+- Surefire termina con successo ma rileva zero test Java, benché i contratti
+  siano eseguiti dal runner PowerShell;
+- PowerShell 5.1 può fallire l'estrazione dello ZIP da un percorso Windows
+  molto lungo; il manuale suggerisce già `C:\DriveAura51`, ma serve una
+  diagnosi esplicita e verificabile.
+
+Non sono stati rilevati errori nei digest, nell'idempotenza, nei vincoli,
+nell'autenticazione o nella struttura del pacchetto. La correzione deve restare
+proporzionata a un progetto universitario e ai requisiti già presenti, senza
+ampliare l'architettura.
+
+## Esito T11.1
+
+- `WaitForExit()` è sempre limitato; la suite verifica percorso normale,
+  timeout, identità del processo, cleanup, rilascio handle e una guardia AST.
+- Il runner limita tutti i processi Java/PHP/Python e i server temporanei;
+  nessuna attesa PowerShell operativa o di test nota resta senza deadline,
+  contatore o progresso monotono.
+- Django applica timeout configurabili: connessione 10 s, lock 10 s, statement
+  120 s e transazione inattiva 120 s per default. Una prova PostgreSQL 18.4
+  con lock da 500 ms ha confermato 503, rollback, checkpoint invariato e
+  ripresa recuperabile.
+- PHP/PDO usa 3 s per la connessione e 8 s per ogni query per default, con
+  rilevamento fail-closed MariaDB/MySQL. MariaDB 12.3.2 ha interrotto una query
+  lenta in 1,005 s; connessione irraggiungibile ed errori pubblici sono rimasti
+  limitati e sanitizzati.
+- Surefire 3.5.4 esegue tre contratti reali; una falsa asserzione nella sola
+  copia temporanea ha reso la build non riuscita. `mvn clean package` ha
+  prodotto i WAR Tomcat 9/11.
+- Runner rigoroso, errore senza runtime, `-AllowPartial`, 21 lint PHP, cinque
+  comandi test PHP, 29 test Django, migrazioni PostgreSQL, 31 casi installer e
+  sei test del mock remoto sono passati.
+- Le prove pulite finali del pacchetto sono terminate in 42,732 s wall-clock
+  con Tomcat 11 e 43,334 s con Tomcat 9. Entrambe hanno verificato 22 righe/22
+  lotti, repeat idempotente, database operativo vuoto, log puliti e cleanup.
+- Il candidato riproducibile misura 12.855.976 byte, contiene 117 entry/115
+  payload e ha SHA-256
+  `1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
+  Tutti i payload coincidono con le sorgenti; scansioni pacchetto e tracking
+  non rilevano segreti, cache, log, `target` o ambienti locali.
+- Il manuale A4 di tre pagine e le scelte A4 di una pagina sono stati
+  rigenerati, renderizzati a 144 dpi e controllati visivamente senza difetti.
+- Il dump massivo è stato ricostruito con lo stesso hash e 36.176 righe. Le
+  modifiche non alterano contratto, canonicalizzazione, schema, orchestrazione
+  o persistenza, quindi la migrazione massiva T07 non è stata ripetuta.
+- Il Progetto 1 è pulito e invariato. Il cluster PostgreSQL temporaneo T11.1 è
+  stato arrestato dopo verifica di PID, percorso, istante e command line.
+- Rapporto completo: `docs/VERIFICA_T11_1.md`.
 
 ## Fatti e decisioni verificati
 
@@ -358,5 +422,6 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T11. Non è autorizzata alcuna attività
-successiva; l'email resta una bozza e non deve essere inviata automaticamente.
+Attendere la revisione Work di T11.1. `AUTORIZZATA` è `Nessuna`; l'email resta
+una bozza e non deve essere inviata automaticamente. Non distribuire su
+Altervista e non creare tag o release senza una nuova autorizzazione.

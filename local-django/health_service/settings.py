@@ -2,6 +2,8 @@ import os
 
 from django.core.exceptions import ImproperlyConfigured
 
+from .database_timeouts import PostgresTimeouts
+
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
 if not SECRET_KEY:
@@ -12,6 +14,7 @@ ROOT_URLCONF = "health_service.urls"
 MIDDLEWARE = []
 INSTALLED_APPS = ["health_service.apps.HealthServiceConfig"]
 if os.environ.get("POSTGRES_DB"):
+    postgres_timeouts = PostgresTimeouts.from_environment(os.environ)
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -21,6 +24,7 @@ if os.environ.get("POSTGRES_DB"):
             "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
             "PORT": os.environ.get("POSTGRES_PORT", "5432"),
             "CONN_MAX_AGE": 0,
+            "OPTIONS": postgres_timeouts.django_options(),
         }
     }
 else:

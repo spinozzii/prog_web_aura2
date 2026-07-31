@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import sys
 import threading
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -76,10 +78,12 @@ class MockRemoteContractTest(unittest.TestCase):
 
     def test_all_rows_are_returned_in_deterministic_multipage_order(self) -> None:
         dataset_id = self.server.dataset.dataset_id
+        expected_rows = list(self.server.dataset.entities["patologia"].rows)
         cursor = None
         collected: list[dict[str, object]] = []
         page_count = 0
-        while True:
+        max_pages = len(expected_rows) + 1
+        for page_count in range(1, max_pages + 1):
             path = (
                 f"/api/v1/export/patologia?datasetId={dataset_id}&limit=1"
                 + (f"&cursor={cursor}" if cursor is not None else "")
@@ -99,16 +103,17 @@ class MockRemoteContractTest(unittest.TestCase):
             )
             self.assertEqual(hashlib.sha256(canonical).hexdigest(), body["digest"])
             collected.extend(page_rows)
-            page_count += 1
             cursor = body["nextCursor"]
             self.assertEqual(cursor is not None, body["hasMore"])
             if cursor is None:
                 break
+        else:
+            self.fail(
+                f"La paginazione non termina entro {max_pages} pagine."
+            )
 
         self.assertGreater(page_count, 1)
-        self.assertEqual(
-            list(self.server.dataset.entities["patologia"].rows), collected
-        )
+        self.assertEqual(expected_rows, collected)
 
     def test_tampered_cursor_is_rejected(self) -> None:
         dataset_id = self.server.dataset.dataset_id
@@ -146,6 +151,15 @@ class MockRemoteContractTest(unittest.TestCase):
             (self.server.dataset.dataset_id, "patologia", 1),
             codec.decode(cursor, allow_expired=True),
         )
+
+    def test_expected_probe_disconnect_does_not_emit_a_traceback(self) -> None:
+        error_output = io.StringIO()
+        try:
+            raise ConnectionResetError("synthetic readiness disconnect")
+        except ConnectionResetError:
+            with redirect_stderr(error_output):
+                self.server.handle_error(None, ("127.0.0.1", 0))
+        self.assertEqual("", error_output.getvalue())
 
 
 if __name__ == "__main__":

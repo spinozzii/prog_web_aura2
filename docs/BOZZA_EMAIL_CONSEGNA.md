@@ -22,7 +22,7 @@ Allegati:
 - drive-aura-51-offline.zip.sha256
 
 SHA-256 dello ZIP:
-0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea
+1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c
 
 Il pacchetto contiene il manuale PDF, il documento PDF delle scelte, i
 sorgenti, i WAR Tomcat 9 e 11, la wheelhouse offline, il dump sorgente e gli

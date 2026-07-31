@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'DriveAura.PathSafety.ps1')
 
 $manifestName = 'PACKAGE-MANIFEST.json'
 $checksumsName = 'SHA256SUMS.txt'
@@ -259,6 +260,10 @@ function Assert-RequiredFile {
 if ([string]::IsNullOrWhiteSpace($PackageRoot)) {
     $PackageRoot = Split-Path -Parent $PSScriptRoot
 }
+$null = Assert-DriveAuraPathBudget `
+    -RootPath $PackageRoot `
+    -RequiredRelativeLength 104 `
+    -Label 'la radice estratta del pacchetto'
 $resolvedRoot = Get-CanonicalDirectory -Path $PackageRoot
 
 $entries = @(Get-SafePackageEntries -Root $resolvedRoot)

@@ -32,6 +32,15 @@ test, documenti, dump, WAR o wheel. Il percorso pubblico è
    scrittura per la prova, se Altervista permette di crearne uno.
 6. Usare due segreti casuali distinti per API e cursori.
 
+Lasciare i timeout di esempio a 3 secondi per la connessione PDO e 8 secondi
+per ogni `SELECT`, oppure scegliere interi rispettivamente negli intervalli
+1-30 e 1-120. Il timeout PHP/web server dell'hosting è distinto: deve essere
+più ampio del limite query. `PDO::ATTR_TIMEOUT` limita soltanto la connessione;
+il servizio applica il limite query nativo dopo aver rilevato la versione:
+`SET STATEMENT` su MariaDB 10.1.1+ e `MAX_EXECUTION_TIME` su MySQL 5.7.8+.
+Se l'API risponde `SOURCE_TIMEOUT_UNSUPPORTED`, verificare dal pannello la
+versione del database e non aggiungere comandi SQL non supportati.
+
 Se l'hosting rifiuta la direttiva `SetEnv`, interrompere la configurazione:
 non inserire segreti in `index.php` e non rendere pubblico un file di
 credenziali. Verificare dal pannello Altervista il metodo supportato per

@@ -14,8 +14,10 @@ Entrambi gli adattatori espongono `GET /health` e restituiscono:
 
 Le API Servlet sono dipendenze `provided`, fissate rispettivamente a Servlet
 4.0.1 e 6.1.0: servono alla costruzione degli artefatti, non alla macchina del
-docente, che riceverà WAR precompilati in T09. Il test del core, privo di
-Maven, viene eseguito con `tests/run-health-contracts.ps1`.
+docente, che riceve WAR precompilati. I tre contratti del core restano
+eseguibili senza dipendenze dal runner `tests/run-health-contracts.ps1` e sono
+anche rilevati realmente da Surefire con `mvn clean test`; il modulo `core`
+fallisce se Maven non trova alcun test.
 
 Entrambi gli adattatori espongono anche `POST /api/v1/migrations` e
 `GET /api/v1/migrations/{migrationId}`. L'endpoint `POST` accetta `{}` oppure

@@ -3,7 +3,7 @@
 ## Manuale di installazione e verifica offline
 
 Secondo progetto di Programmazione Web - scelta B - Versione candidata:
-25 luglio 2026
+31 luglio 2026
 
 Questo pacchetto migra i dati del Servizio Sanitario dal servizio PHP remoto a
 PostgreSQL locale. Il percorso applicativo è:
@@ -40,9 +40,13 @@ Controllare le versioni:
 
 ## 2. Estrarre e controllare il pacchetto
 
+**Importante:** estrarre direttamente in `C:\DriveAura51`. PowerShell 5.1 può
+fallire durante `Expand-Archive` se la directory padre è molto lunga; nessuno
+script può prevenire un errore già avvenuto in questa fase.
+
 1. Mettere ZIP e file `.sha256` nella stessa cartella e aprire PowerShell.
 2. Confrontare il checksum esterno prima di estrarre lo ZIP.
-3. Estrarre lo ZIP in una cartella nuova, per esempio `C:\DriveAura51`.
+3. Estrarre lo ZIP nella cartella nuova `C:\DriveAura51`.
 4. Aprire PowerShell nella cartella `drive-aura-51-offline`.
 5. Abilitare gli script soltanto per la sessione corrente e verificare gli
    hash interni prima di inserire segreti.
@@ -57,6 +61,9 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 Attendere `Integrità pacchetto valida`. Se il controllo fallisce, eliminare
 la copia estratta e ripartire dallo ZIP originale.
+Il primo script controlla anche il budget dei percorsi prima di traversare o
+copiare file. Se è insufficiente, chiede di riestrarre in `C:\DriveAura51` e
+si ferma senza spostare o cancellare nulla.
 
 ## 3. Impostare i segreti
 
@@ -102,6 +109,11 @@ Python usa sette wheel locali con `--no-index` e `--require-hashes`. Se
 `-VerificationDatabase` è omesso, il nome viene derivato aggiungendo
 `_verify` al database operativo.
 
+I timeout PostgreSQL predefiniti sono: connessione 10 s (1-60), lock 10000 ms
+(100-120000), query 120000 ms e transazione inattiva 120000 ms
+(1000-600000). Le quattro variabili `POSTGRES_*_TIMEOUT_*` documentate nel
+README Django permettono di modificarli con soli interi negli intervalli.
+
 L'esito corretto termina con:
 
 ```text
@@ -144,6 +156,11 @@ Preparare prima il componente remoto seguendo `ALTERVISTA.md`. Impostare nella
 stessa sessione i cinque segreti della sezione 3; il valore di
 `REMOTE_API_SECRET` deve coincidere con il segreto configurato nel servizio
 PHP remoto.
+
+Il PHP remoto usa per default 3 s per connettersi via PDO (intervallo 1-30) e
+8 s per ogni query (1-120). Sono limiti distinti dal timeout PHP/web server;
+configurare `REMOTE_DB_CONNECT_TIMEOUT_SECONDS` e
+`REMOTE_DB_QUERY_TIMEOUT_SECONDS` nella `.htaccess` privata.
 
 ```powershell
 .\installer\Start-DriveAura.ps1 `
@@ -226,6 +243,12 @@ checksum esterno dello ZIP e riestrarre il pacchetto originale.
 
 Non è un errore per installazione e prova sintetica. Il configuratore non usa
 download. La rete serve soltanto quando si collega al PHP Altervista reale.
+
+### Percorso Windows troppo lungo
+
+Sintomo: `Percorso Windows troppo lungo` oppure estrazione incompleta.
+Soluzione: non spostare la copia parziale; riestrarre lo ZIP originale
+direttamente in `C:\DriveAura51` e rilanciare il controllo di integrità.
 
 ### Database di verifica non vuoto
 

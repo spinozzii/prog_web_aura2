@@ -25,12 +25,12 @@ consegnato.
 ## Stato
 
 T07 ha verificato la verticale completa sul dataset massivo di 36.176 righe.
-T09 ha prodotto il candidato offline con sorgenti, wheelhouse, WAR, dump,
-configuratore e PDF. La prova da ZIP pulito ha completato installazione,
-configurazione e verifica in 43,571 secondi senza usare Internet. T11 ha
-concluso l'audit finale, ripetuto le prove pulite con Tomcat 9 e 11 e
-ricostruito il candidato riproducibile da 12.842.104 byte con SHA-256
-`0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea`.
+T09 ha prodotto il pacchetto offline. T11.1 ha chiuso i rischi di attese
+indefinite e ha riconfermato la consegnabilità: le prove finali da ZIP pulito
+sono terminate in 42,732 secondi con Tomcat 11 e 43,334 secondi con Tomcat 9,
+senza download. Il candidato riproducibile misura 12.855.976 byte e ha
+SHA-256
+`1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
 Lo stato vincolante resta sempre in `TASKS.md`.
 
 ## Origine dei dati
@@ -68,6 +68,7 @@ Altervista avverrà solo in una fase esplicitamente autorizzata.
 - `docs/VERIFICA_T07.md`: migrazione massiva e prove di resilienza osservate;
 - `docs/VERIFICA_T09.md`: pacchetto offline, prova pulita, PDF e casi avversi;
 - `docs/VERIFICA_T11.md`: audit conclusivo, prove finali e limiti;
+- `docs/VERIFICA_T11_1.md`: attese finite e verdetto di consegnabilità;
 - `docs/BOZZA_EMAIL_CONSEGNA.md`: bozza non inviata e controlli pre-invio;
 - `docs/RISCHI.md`: rischi e contromisure.
 

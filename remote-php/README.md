@@ -38,7 +38,25 @@ dall'ambiente:
 - `REMOTE_DB_USER` e `REMOTE_DB_PASSWORD`;
 - `REMOTE_API_SECRET`;
 - `REMOTE_CURSOR_SECRET`;
-- `REMOTE_CURSOR_TTL_SECONDS`, facoltativo, predefinito a 900 secondi.
+- `REMOTE_CURSOR_TTL_SECONDS`, facoltativo, predefinito a 900 secondi;
+- `REMOTE_DB_CONNECT_TIMEOUT_SECONDS`, facoltativo, predefinito a 3 secondi,
+  ammesso da 1 a 30;
+- `REMOTE_DB_QUERY_TIMEOUT_SECONDS`, facoltativo, predefinito a 8 secondi,
+  ammesso da 1 a 120.
+
+I valori timeout devono essere interi ASCII positivi negli intervalli indicati;
+una configurazione vuota, con spazi, decimali o fuori limite viene rifiutata
+senza mostrare DSN, credenziali o query. `PDO::ATTR_TIMEOUT` limita la fase di
+connessione e non l'esecuzione SQL. Per ogni `SELECT`, dopo aver rilevato
+driver e versione, il servizio applica invece il limite nativo verificato:
+`SET STATEMENT max_statement_time=... FOR SELECT` su MariaDB 10.1.1+ oppure
+l'hint `MAX_EXECUTION_TIME` su MySQL 5.7.8+. Una versione non riconosciuta
+fallisce in sicurezza con `SOURCE_TIMEOUT_UNSUPPORTED`; non vengono inviati
+comandi SQL ipotetici alla sorgente.
+
+Il timeout PHP o del web server è un terzo limite indipendente, configurato
+dall'hosting. Deve essere maggiore del limite query e non viene usato come
+sostituto del timeout PDO o del limite MySQL/MariaDB.
 
 La sorgente di produzione usa soltanto PDO e query `SELECT` preparate sulle
 tabelle in whitelist. La paginazione usa l'intera chiave primaria, inclusa la
@@ -65,7 +83,13 @@ Non è richiesto Composer. I test isolati richiedono PHP CLI:
 php tests/HealthResponseTest.php
 php tests/PatologiaCanonicalizerTest.php
 php tests/PatologiaApiTest.php
+php tests/PdoTimeoutPolicyTest.php
+php tests/PdoTimeoutIntegrationTest.php
 ```
+
+L'ultimo test mostra `SKIP` salvo quando `RUN_PDO_TIMEOUT_INTEGRATION=1` e un
+MariaDB/MySQL di collaudo sono configurati esplicitamente; non usa mai la
+sorgente reale per provocare una query lenta.
 
 Il runner condiviso avvia anche un server PHP temporaneo senza opzione
 `router` e verifica via HTTP `GET /health`, incluso il Content-Type.

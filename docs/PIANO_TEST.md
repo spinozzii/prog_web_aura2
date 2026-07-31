@@ -233,3 +233,23 @@ Due build consecutive dello ZIP hanno prodotto 12.842.104 byte e SHA-256
 `0184e28030d54518778307efcc0f5f11d8f0c1ab11c540b4ce3aab1286e15bea`.
 Tutte le pagine dei due PDF sono state nuovamente renderizzate e ispezionate.
 Dettagli, correzioni e limiti sono in `docs/VERIFICA_T11.md`.
+
+## 11. Esito osservato per T11.1
+
+Il 31 luglio 2026 sono stati aggiunti timeout finiti a processi PowerShell,
+PostgreSQL/Django e PHP/PDO, una guardia AST contro `WaitForExit()` senza
+argomenti, il controllo dei percorsi Windows e tre contratti Java realmente
+rilevati da Maven.
+
+Sono passati runner rigoroso, errore senza runtime, `-AllowPartial` con tre
+skip, lint di 21 file PHP, 29 test Django, lock PostgreSQL reale con
+rollback/ripresa, timeout PDO reale, `mvn clean test/package`, 31 casi
+installer e 6 test del mock remoto. Le prove pulite finali sono terminate in
+42,732 secondi wall-clock con Tomcat 11 e 43,334 secondi con Tomcat 9.
+
+Il candidato riproducibile contiene 117 entry/115 payload, misura 12.855.976
+byte e ha SHA-256
+`1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
+Tutti i payload coincidono con le sorgenti; i quattro render PDF sono stati
+ispezionati. Il dettaglio e il verdetto `CONSEGNABILE` sono in
+`docs/VERIFICA_T11_1.md`.

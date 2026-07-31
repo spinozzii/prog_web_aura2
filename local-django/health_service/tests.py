@@ -134,7 +134,9 @@ class MigrationEndpointSecurityTests(TestCase):
 
     @patch(
         "health_service.views.DjangoEntityRepository.status",
-        side_effect=DatabaseError("temporary test failure"),
+        side_effect=DatabaseError(
+            "password=not-public host=private.invalid SELECT pg_sleep(99)"
+        ),
     )
     def test_database_unavailable_has_uniform_error(self, _status):
         response = self.client.get(
@@ -143,6 +145,9 @@ class MigrationEndpointSecurityTests(TestCase):
         )
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["error"]["code"], "DATABASE_UNAVAILABLE")
+        public_body = response.content.decode("utf-8")
+        for private_detail in ("not-public", "private.invalid", "SELECT", "pg_sleep"):
+            self.assertNotIn(private_detail, public_body)
 
     def test_database_constraints_reject_invalid_domain_values(self):
         with self.assertRaises(IntegrityError):

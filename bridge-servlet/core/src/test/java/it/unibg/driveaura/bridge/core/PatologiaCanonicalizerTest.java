@@ -15,6 +15,24 @@ public final class PatologiaCanonicalizerTest {
     private static final Pattern CANONICAL = Pattern.compile("\\\"expectedCanonical\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"");
     private static final Pattern DIGEST = Pattern.compile("\\\"expectedSha256\\\"\\s*:\\s*\\\"([0-9a-f]{64})\\\"");
 
+    public void testSharedFixtures() throws Exception {
+        String[] names = {
+            "patologia-canonical.json",
+            "patologia-empty.json",
+            "patologia-line-separators.json"
+        };
+        String[] paths = new String[names.length];
+        for (int index = 0; index < names.length; index++) {
+            java.net.URL resource = PatologiaCanonicalizerTest.class
+                    .getResource("/" + names[index]);
+            if (resource == null) {
+                throw new AssertionError("Fixture Maven mancante: " + names[index]);
+            }
+            paths[index] = Paths.get(resource.toURI()).toString();
+        }
+        main(paths);
+    }
+
     public static void main(String[] args) throws Exception {
         for (String fixturePath : args) {
             verifyFixture(fixturePath);

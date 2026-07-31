@@ -21,7 +21,11 @@ public final class MigrationOrchestratorTest {
     private static final String REMOTE = "https://remote.test";
     private static final String LOCAL = "http://127.0.0.1:8765";
 
-    private MigrationOrchestratorTest() {
+    public MigrationOrchestratorTest() {
+    }
+
+    public void testMigrationContracts() {
+        main(new String[0]);
     }
 
     public static void main(String[] args) {

@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 Import-Module (Join-Path $repositoryRoot 'delivery\installer\DriveAura.Common.psm1') -Force
+. (Join-Path $repositoryRoot 'delivery\installer\DriveAura.PathSafety.ps1')
 
 $passed = 0
 $failed = 0
@@ -30,6 +31,37 @@ function Invoke-ExpectedFailure {
             Write-Host "PASS: $Name"
             $script:passed++
         }
+    }
+}
+
+function Wait-InstallerProbeProcess {
+    param(
+        [Parameter(Mandatory = $true)][Diagnostics.Process]$Process,
+        [Parameter(Mandatory = $true)][string]$ExpectedExecutablePath,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [ValidateRange(100, 5000)][int]$TimeoutMilliseconds = 2000
+    )
+
+    $identity = $null
+    try {
+        $identity = New-DriveAuraProcessIdentity `
+            -Process $Process `
+            -CommandMarker $Label `
+            -ExpectedExecutablePath $ExpectedExecutablePath
+        if ($Process.WaitForExit($TimeoutMilliseconds)) {
+            return [int]$Process.ExitCode
+        }
+
+        if (Test-DriveAuraProcessIdentity -Identity $identity -Label $Label) {
+            Stop-DriveAuraOwnedProcessTree `
+                -Identity $identity -Label $Label -TimeoutSeconds 2
+        }
+        if (-not $Process.WaitForExit(1500)) {
+            throw "Timeout $Label; il processo non si e chiuso dopo il cleanup mirato."
+        }
+        throw "Timeout $Label dopo $TimeoutMilliseconds millisecondi; processo arrestato."
+    } finally {
+        $Process.Dispose()
     }
 }
 
@@ -70,11 +102,99 @@ try {
     }
     $processProbe = Start-Process -FilePath $env:ComSpec `
         -ArgumentList @('/d', '/c', 'exit 0') -WindowStyle Hidden -PassThru
-    $processProbe.WaitForExit()
-    if ($processProbe.ExitCode -ne 0) {
+    $processProbeExit = Wait-InstallerProbeProcess `
+        -Process $processProbe `
+        -ExpectedExecutablePath $env:ComSpec `
+        -Label 'prova normale Start-Process' `
+        -TimeoutMilliseconds 2000
+    if ($processProbeExit -ne 0) {
         throw 'Il processo di prova non si e concluso correttamente.'
     }
     Write-Host 'PASS: ambiente Path/PATH normalizzato per Start-Process.'
+    $passed++
+
+    $timeoutProbe = Start-Process `
+        -FilePath (Join-Path $env:SystemRoot 'System32\ping.exe') `
+        -ArgumentList @('127.0.0.1', '-n', '30') `
+        -WindowStyle Hidden -PassThru
+    $timeoutProbePid = $timeoutProbe.Id
+    $timeoutProbeTimer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        Wait-InstallerProbeProcess `
+            -Process $timeoutProbe `
+            -ExpectedExecutablePath (Join-Path $env:SystemRoot 'System32\ping.exe') `
+            -Label 'prova timeout Start-Process' `
+            -TimeoutMilliseconds 300 | Out-Null
+        throw 'La prova timeout Start-Process non ha prodotto errore.'
+    } catch {
+        if ($_.Exception.Message -notmatch 'Timeout prova timeout Start-Process') {
+            throw
+        }
+    } finally {
+        $timeoutProbeTimer.Stop()
+    }
+    if ($timeoutProbeTimer.Elapsed.TotalSeconds -gt 5 -or
+        $null -ne (Get-Process -Id $timeoutProbePid -ErrorAction SilentlyContinue)) {
+        throw 'Il cleanup della prova timeout Start-Process non e terminato correttamente.'
+    }
+    Write-Host 'PASS: WaitForExit limitato, identita verificata e Dispose eseguito.'
+    $passed++
+
+    $shortProbe = 'C:\DriveAura51\drive-aura-51-offline'
+    $null = Assert-DriveAuraPathBudget `
+        -RootPath $shortProbe -RequiredRelativeLength 104 `
+        -Label 'il percorso corto simulato'
+    Invoke-ExpectedFailure -Name 'Percorso Windows troppo lungo' `
+        -MessagePattern 'C:\\DriveAura51' -Action {
+        $longProbe = 'C:\' + ('directory-lunga-' * 11)
+        Assert-DriveAuraPathBudget `
+            -RootPath $longProbe -RequiredRelativeLength 104 `
+            -Label 'il percorso lungo simulato' | Out-Null
+    }
+    Write-Host 'PASS: percorso Windows corto accettato.'
+    $passed++
+
+    $parseErrors = New-Object System.Collections.Generic.List[object]
+    $unsafeWaits = New-Object System.Collections.Generic.List[string]
+    $powerShellFiles = @(
+        foreach ($scanRoot in @(
+                'delivery\installer',
+                'delivery\tests',
+                'scripts',
+                'tests'
+            )) {
+            Get-ChildItem -Recurse -File `
+                -LiteralPath (Join-Path $repositoryRoot $scanRoot) |
+                Where-Object {
+                    $_.Extension -ieq '.ps1' -or $_.Extension -ieq '.psm1'
+                }
+        }
+    )
+    foreach ($scriptFile in $powerShellFiles) {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+            $scriptFile.FullName,
+            [ref]$tokens,
+            [ref]$errors
+        )
+        foreach ($parseError in @($errors)) {
+            $parseErrors.Add($parseError)
+        }
+        foreach ($call in @($ast.FindAll({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and
+                    [string]$node.Member.Value -eq 'WaitForExit' -and
+                    $node.Arguments.Count -eq 0
+                }, $true))) {
+            $unsafeWaits.Add("$($scriptFile.FullName):$($call.Extent.StartLineNumber)")
+        }
+    }
+    if ($parseErrors.Count -gt 0 -or $unsafeWaits.Count -gt 0) {
+        throw ('Audit PowerShell non valido; parse={0}; WaitForExit senza timeout={1}: {2}' -f
+            $parseErrors.Count, $unsafeWaits.Count, ($unsafeWaits -join ', '))
+    }
+    Write-Host 'PASS: audit AST senza WaitForExit privo di timeout.'
     $passed++
 
     $externalTimer = [Diagnostics.Stopwatch]::StartNew()

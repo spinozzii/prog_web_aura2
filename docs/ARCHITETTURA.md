@@ -266,6 +266,15 @@ ordine, conteggi, digest e `datasetId`; `generatedAt` è escluso dal confronto
 di identità. Django rifiuta inoltre la finalizzazione finché il checkpoint
 indica che la sorgente non è esaurita.
 
+Ogni livello operativo ha una scadenza finita. Il runner e l'installer
+incapsulano i processi esterni in un job Windows con watchdog; readiness e
+richieste HTTP hanno deadline esplicite. Django configura su ogni sessione
+PostgreSQL i limiti di connessione, lock, statement e transazione inattiva.
+Il PHP distingue il timeout di connessione PDO dal limite server della query,
+rilevando MariaDB o MySQL prima di applicare sintassi specifica. Un timeout
+database lascia che la transazione Django esegua rollback e viene classificato
+come recuperabile dal percorso di resilienza esistente.
+
 ## 8. Installazione
 
 Il candidato offline contiene:

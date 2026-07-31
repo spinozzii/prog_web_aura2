@@ -40,10 +40,29 @@ quindi applicare le migrazioni:
 python manage.py migrate
 ```
 
+Le connessioni operative PostgreSQL applicano scadenze finite, configurabili
+senza modificare il codice:
+
+- `POSTGRES_CONNECT_TIMEOUT_SECONDS`: 10 secondi, intervallo 1-60;
+- `POSTGRES_LOCK_TIMEOUT_MS`: 10000 ms, intervallo 100-120000;
+- `POSTGRES_STATEMENT_TIMEOUT_MS`: 120000 ms, intervallo 1000-600000;
+- `POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS`: 120000 ms, intervallo
+  1000-600000.
+
+Sono accettati soltanto interi ASCII positivi negli intervalli indicati. I
+limiti sono opzioni di sessione PostgreSQL 14-18: non alterano transazioni,
+digest o checkpoint. Un timeout database produce una risposta pubblica 503
+senza dettagli SQL; la transazione viene annullata e un successivo rilancio
+può riprendere lo stesso `migrationId` dal checkpoint confermato.
+
 Le impostazioni operative non contengono SQLite e falliscono se
 `DJANGO_SECRET_KEY` manca. Il modulo `health_service.test_settings` usa
 SQLite in memoria esclusivamente per i test isolati; non costituisce una
 prova PostgreSQL.
+
+La regressione reale del lock si abilita soltanto su un database di test
+dedicato con `RUN_POSTGRES_LOCK_TEST=1`; usa un watchdog esterno e rilascia le
+connessioni in ogni esito.
 
 La finalizzazione segue l'ordine completo, ricalcola digest e `datasetId`,
 controlla FK e unicità, richiede una patologia per ogni ricovero e verifica

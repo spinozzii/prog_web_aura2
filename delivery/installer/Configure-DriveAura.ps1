@@ -21,14 +21,23 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 Import-Module (Join-Path $PSScriptRoot 'DriveAura.Common.psm1') -Force
+. (Join-Path $PSScriptRoot 'DriveAura.PathSafety.ps1')
 
 Repair-DriveAuraPathEnvironment | Out-Null
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $packageRoot = (Resolve-Path -LiteralPath (Split-Path -Parent $PSScriptRoot)).Path
+$null = Assert-DriveAuraPathBudget `
+    -RootPath $packageRoot `
+    -RequiredRelativeLength 104 `
+    -Label 'la radice estratta del pacchetto'
 if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
     $InstallRoot = Join-Path (Split-Path -Parent $packageRoot) 'drive-aura-51-runtime'
 }
 $installFullPath = [IO.Path]::GetFullPath($InstallRoot)
+$null = Assert-DriveAuraPathBudget `
+    -RootPath $installFullPath `
+    -RequiredRelativeLength 121 `
+    -Label 'la directory di installazione'
 $packagePathPrefix = $packageRoot.TrimEnd('\') + '\'
 $installPathPrefix = $installFullPath.TrimEnd('\') + '\'
 if (

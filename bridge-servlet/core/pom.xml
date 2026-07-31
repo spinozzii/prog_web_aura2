@@ -11,8 +11,20 @@
     <testResources>
       <testResource>
         <directory>${project.basedir}/../../tests/fixtures</directory>
-        <includes><include>t03-dataset.json</include></includes>
+        <includes>
+          <include>t03-dataset.json</include>
+          <include>patologia-canonical.json</include>
+          <include>patologia-empty.json</include>
+          <include>patologia-line-separators.json</include>
+        </includes>
       </testResource>
     </testResources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration><failIfNoTests>true</failIfNoTests></configuration>
+      </plugin>
+    </plugins>
   </build>
 </project>

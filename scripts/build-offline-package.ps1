@@ -16,10 +16,10 @@ $repositoryTmp = [System.IO.Path]::GetFullPath(
     (Join-Path $projectRoot 'tmp')
 )
 $workRoot = [System.IO.Path]::GetFullPath(
-    (Join-Path $repositoryTmp 'offline-package-build')
+    (Join-Path $repositoryTmp 'drive-aura-package')
 )
-$stagingContainer = Join-Path $workRoot 'staging'
-$extractionContainer = Join-Path $workRoot 'extracted'
+$stagingContainer = Join-Path $workRoot 's'
+$extractionContainer = Join-Path $workRoot 'x'
 $packageRoot = Join-Path $stagingContainer $packageName
 $distRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $projectRoot 'dist')
@@ -68,7 +68,7 @@ function Assert-PathWithin {
 
 function Assert-SafeWorkRoot {
     $expected = [System.IO.Path]::GetFullPath(
-        (Join-Path $repositoryTmp 'offline-package-build')
+        (Join-Path $repositoryTmp 'drive-aura-package')
     )
     if (-not $workRoot.Equals(
             $expected,

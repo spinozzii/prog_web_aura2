@@ -1,4 +1,9 @@
 # Modificare soltanto i percorsi e i nomi non sensibili.
+# I timeout PostgreSQL sono facoltativi; questi sono i default operativi.
+# $env:POSTGRES_CONNECT_TIMEOUT_SECONDS = '10'
+# $env:POSTGRES_LOCK_TIMEOUT_MS = '10000'
+# $env:POSTGRES_STATEMENT_TIMEOUT_MS = '120000'
+# $env:POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS = '120000'
 $driveAuraParameters = @{
     PythonPath = 'C:\Python312\python.exe'
     JavaHome = 'C:\Program Files\Java\jdk-17'

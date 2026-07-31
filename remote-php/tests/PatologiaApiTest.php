@@ -146,9 +146,11 @@ foreach ($registry->order() as $index => $entity) {
 // Traverse every entity one row at a time. This exercises both simple and
 // complete composite key tuples across equal prefixes and entity boundaries.
 foreach ($registry->all() as $schema) {
+    $expectedRows = $schema->sorted($schema->normalizeRows($rowsByEntity[$schema->name]));
+    $maxPages = count($expectedRows) + 1;
     $cursor = null;
     $collected = [];
-    do {
+    for ($pageIndex = 0; $pageIndex < $maxPages; $pageIndex++) {
         $query = exportQuery($datasetId, ['limit' => '1']);
         if ($cursor !== null) {
             $query['cursor'] = $cursor;
@@ -167,10 +169,18 @@ foreach ($registry->all() as $schema) {
         if (($response->body['hasMore'] ?? null) !== ($cursor !== null)) {
             failTest('Coerenza hasMore/cursore non valida: ' . $schema->name);
         }
-    } while ($cursor !== null);
+        if ($cursor === null) {
+            break;
+        }
+    }
+    if ($cursor !== null) {
+        failTest(
+            'Paginazione non terminata entro ' . $maxPages . ' pagine: ' . $schema->name
+        );
+    }
 
     assertSameValue(
-        $schema->sorted($schema->normalizeRows($rowsByEntity[$schema->name])),
+        $expectedRows,
         $collected,
         'raccolta completa ' . $schema->name
     );

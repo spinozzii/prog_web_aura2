@@ -1,5 +1,8 @@
 # Verifica T11 - audit finale
 
+> Evidenza storica del 30 luglio 2026. Il candidato corrente e il verdetto
+> aggiornato sono documentati in `docs/VERIFICA_T11_1.md`.
+
 Data dell'audit: 30 luglio 2026.
 
 ## Esito
