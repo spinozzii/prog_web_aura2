@@ -6,16 +6,25 @@ Nessuna.
 
 ## BACKLOG
 
-- [ ] **T13.2 - Riconciliazione completa del dataset Altervista**
-  - autorizzazione esplicita ancora necessaria: T13.1 ha provato che la sola
-    cancellazione delle due righe eccedenti non rende i digest conformi a T07;
-  - definire e approvare una correzione transazionale che ripristini dal seed
-    ufficiale la riga comune divergente, riconcili i tre progressivi e rimuova
-    in ordine figlio-padre la coppia tecnica extra;
-  - rieseguire confronto byte canonico, manifest, vincoli e controlli HTTP
-    soltanto dopo una nuova autorizzazione.
+Nessuna.
 
 ## IN REVISIONE
+
+- [ ] **T13.2 - Valutazione rapida del ripristino completo Altervista**
+  - nuova autorizzazione applicata senza avviare la migrazione Django/PostgreSQL;
+  - phpMyAdmin espone il solo database applicativo `my_motorizzami`, con le
+    esatte otto tabelle sanitarie; schema, motori InnoDB e tabelle sono quindi
+    compatibili con un futuro ripristino circoscritto dal seed ufficiale;
+  - l'export SQL completo richiesto prima di un import non ha prodotto un file
+    locale verificabile nel collaudo a scadenza finita; resta disponibile il
+    backup T13.1, deliberatamente limitato alle tre tabelle allora coinvolte,
+    ma non e' sufficiente per sovrascrivere tutte le otto tabelle;
+  - per non effettuare una sostituzione irreversibile senza rollback completo
+    dimostrabile non e' stata eseguita alcuna query DDL/DML o importazione;
+  - Altervista resta pubblicato ma non allineato a T07: usare per la consegna
+    il pacchetto offline e `origin/consegna`; non configurare la servlet verso
+    il remoto finche' non si ottengono backup completo verificato e HTTPS con
+    certificato valido.
 
 - [ ] **T13.1 - Bonifica minima del database Altervista**
   - creato prima di qualsiasi possibile DML un export SQL gzip verificato,

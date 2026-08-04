@@ -216,3 +216,35 @@ blocchi esterni al codice pubblicato:
 
 Fino ad allora lo stato remoto resta parzialmente operativo e non va usato
 per la migrazione completa.
+
+## Valutazione rapida T13.2 del 4 agosto 2026
+
+La nuova autorizzazione ha richiesto di verificare se fosse possibile un
+ripristino sicuro e circoscritto dell'intero dataset. phpMyAdmin espone il
+solo database applicativo `my_motorizzami`: contiene esattamente le otto
+tabelle sanitarie, tutte InnoDB, senza tabelle estranee da preservare. Lo
+schema era già stato confrontato in T13.1 con la fonte ufficiale; il seed
+ufficiale è quindi il meccanismo adatto per reinizializzare i dati, senza
+modificare Progetto 1.
+
+Prima dell'import era però necessario un nuovo backup completo, esterno al
+repository e verificabile. Il comando di export phpMyAdmin è stato inviato con
+una scadenza di 20 secondi per il rilevamento del download e un controllo
+locale successivo: non è comparso alcun nuovo file scaricato. Il backup T13.1
+resta integro ma copre volutamente soltanto `ricovero`,
+`patologia_ricovero` e `progressivo_ricovero`; non è un rollback sufficiente
+per un seed che reinizializza tutte le otto tabelle.
+
+Di conseguenza non è stata eseguita alcuna importazione né query DDL/DML. Il
+database remoto resta nello stato e con i digest già riportati sopra. La
+consegna verificata resta il pacchetto offline pubblicato anche sul branch
+orfano `consegna`; Altervista è un'integrazione aggiuntiva non usabile dalla
+servlet finché non sono disponibili un backup completo verificato, dataset
+allineato e certificato HTTPS valido. Nessun workaround HTTPS è stato tentato.
+
+I controlli locali proporzionati non hanno modificato il codice: sei test PHP
+sono passati (l'integrazione PDO ha prodotto lo skip previsto) e il lint ha
+validato 23 file. Il runner condiviso ha superato i contratti Java e PHP; la
+parte Django non è stata rieseguita perché il runtime portatile disponibile
+punta a una dipendenza temporanea non leggibile. Questo limite locale non
+incide sui file PHP né sul pacchetto, già verificati in T11.1.

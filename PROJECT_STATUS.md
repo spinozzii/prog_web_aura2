@@ -15,13 +15,31 @@ T12 ha pubblicato su GitHub il branch orfano `consegna` ed è in revisione
 Work. Il branch contiene esclusivamente i due allegati indicati nella bozza
 email; `main` è rimasto il repository tecnico completo.
 
-T13 e T13.1 sono in revisione Work e `AUTORIZZATA` è `Nessuna`. Il fallback
+T13, T13.1 e T13.2 sono in revisione Work e `AUTORIZZATA` è `Nessuna`. Il fallback
 server-only ha risolto il blocco `SetEnv`; health, autenticazione e manifest
 sono raggiungibili. T13.1 ha provato che la sola rimozione delle due righe
 eccedenti non renderebbe il dataset conforme: esistono anche una riga comune
 divergente e tre progressivi diversi dal seed. Nessun DML è stato eseguito.
 L'endpoint non deve essere usato dalla servlet finché dataset e HTTPS non
 vengono riconciliati con una nuova autorizzazione.
+
+## Esito T13.2 - valutazione ripristino completo Altervista
+
+- phpMyAdmin mostra un unico database applicativo, `my_motorizzami`, con
+  esattamente le otto tabelle del progetto sanitario; l'importazione del seed
+  ufficiale sarebbe quindi circoscritta, senza coinvolgere tabelle estranee;
+- il confronto T13.1 conferma che lo schema già presente è coerente con la
+  fonte; il seed ufficiale reinizializzerebbe i dati in transazione, ma prima
+  richiede un backup completo nuovo e verificabile di tutte le otto tabelle;
+- il tentativo di export dal pannello è stato limitato nel tempo e non ha
+  creato un nuovo file locale verificabile. Il backup T13.1, esterno al repo,
+  copre soltanto tre tabelle e non è un rollback completo del ripristino;
+- nessun import, DDL o DML è stato eseguito. Il database resta non conforme a
+  T07 nei record/digest già documentati; il pacchetto offline e il branch
+  `consegna` restano l'unica consegna pronta e verificata;
+- HTTP resta osservato come `200` health, `401` manifest anonimo e `200`
+  manifest autenticato. HTTPS non viene modificato: il pannello richiede
+  identificazione telefonica e il certificato resta non validabile.
 
 ## Esito verifica Altervista del 4 agosto 2026
 
@@ -538,10 +556,10 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T13 e T13.1. `AUTORIZZATA` è `Nessuna`;
-T13.2 resta nel backlog e richiede una nuova autorizzazione esplicita per
-ripristinare dal seed la riga comune divergente, correggere i tre progressivi
-e rimuovere la coppia extra in transazione. L'attivazione HTTPS richiede una
+Attendere la revisione Work di T13, T13.1 e T13.2. `AUTORIZZATA` è `Nessuna`;
+un eventuale ripristino remoto richiede anzitutto un export completo
+verificabile fuori dal repository, quindi nuova autorizzazione per importare
+il seed ufficiale e ripetere manifest/digest. L'attivazione HTTPS richiede una
 scelta e l'identificazione telefonica dell'utente nel pannello. L'email resta
 una bozza e non deve essere inviata automaticamente. Non lanciare la
 migrazione massiva, non modificare il Progetto 1, non unire o modificare
