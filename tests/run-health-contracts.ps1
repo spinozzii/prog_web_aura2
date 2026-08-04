@@ -118,7 +118,8 @@ Invoke-OrSkip 'PHP isolated and HTTP contracts' {
             'HealthResponseTest.php',
             'PatologiaCanonicalizerTest.php',
             'PatologiaApiTest.php',
-            'PdoTimeoutPolicyTest.php'
+            'PdoTimeoutPolicyTest.php',
+            'RuntimeConfigTest.php'
         )) {
         Write-ExternalOutput (Invoke-DriveAuraExternal `
             -FilePath $php.Source `

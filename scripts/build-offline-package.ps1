@@ -473,6 +473,12 @@ try {
 
     # Remote PHP source.
     Copy-RequiredFile 'remote-php\README.md' 'source\remote-php\README.md'
+    Copy-RequiredFile `
+        'remote-php\config\.htaccess' `
+        'source\remote-php\config\.htaccess'
+    Copy-RequiredFile `
+        'remote-php\config\local.php.example' `
+        'source\remote-php\config\local.php.example'
     Copy-AllowedTree 'remote-php\public' 'source\remote-php\public'
     Copy-AllowedTree 'remote-php\src' 'source\remote-php\src'
     Copy-AllowedTree 'remote-php\tests' 'source\remote-php\tests'

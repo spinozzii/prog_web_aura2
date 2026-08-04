@@ -33,11 +33,20 @@ SHA-256
 `1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
 Lo stato vincolante resta sempre in `TASKS.md`.
 
-Il 4 agosto 2026 il componente PHP è stato caricato su Altervista e health è
-stato osservato con HTTP 200. La verifica del manifest è però bloccata perché
-l'account non propaga `SetEnv` al processo PHP; non usare ancora l'endpoint
-come sorgente della servlet. L'evidenza è in
-`docs/VERIFICA_ALTERVISTA.md`.
+Il 4 agosto 2026 il componente PHP aggiornato è stato collaudato su Altervista.
+Il fallback server-only risolve il limite dell'account, che non propaga
+`SetEnv`: `/health` risponde HTTP 200, il manifest anonimo HTTP 401 e quello
+autenticato HTTP 200 con otto entità. Il database remoto contiene però una
+riga eccedente sia in `ricovero` sia in `patologia_ricovero`; inoltre HTTPS
+fallisce la validazione del certificato. Non usare ancora l'endpoint come
+sorgente della servlet e non modificare il database senza una nuova
+autorizzazione. L'evidenza completa è in `docs/VERIFICA_ALTERVISTA.md`.
+
+Ogni valore d'ambiente ha precedenza e, soltanto per le chiavi assenti, il
+servizio legge `remote-php/config/local.php`. Il repository contiene
+esclusivamente `local.php.example`; il file reale è ignorato da Git e non fa
+parte del pacchetto di consegna. Prima di inserirvi valori reali è stato
+verificato il diniego HTTP della directory `config`.
 
 ## Origine dei dati
 
@@ -76,8 +85,8 @@ richiede una nuova autorizzazione.
 - `docs/VERIFICA_T09.md`: pacchetto offline, prova pulita, PDF e casi avversi;
 - `docs/VERIFICA_T11.md`: audit conclusivo, prove finali e limiti;
 - `docs/VERIFICA_T11_1.md`: attese finite e verdetto di consegnabilità;
-- `docs/VERIFICA_ALTERVISTA.md`: pubblicazione remota, blocco `SetEnv` e
-  pulizia osservata;
+- `docs/VERIFICA_ALTERVISTA.md`: fallback remoto, collaudo HTTP, conteggi e
+  limite HTTPS osservati;
 - `docs/BOZZA_EMAIL_CONSEGNA.md`: bozza non inviata e controlli pre-invio;
 - `docs/RISCHI.md`: rischi e contromisure.
 

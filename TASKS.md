@@ -10,6 +10,31 @@ Nessuna.
 
 ## IN REVISIONE
 
+- [ ] **T13 - Completamento pubblicazione Altervista**
+  - implementato e pubblicato il caricatore PHP a whitelist con precedenza
+    ambiente e fallback sul file server-only `remote-php/config/local.php`;
+  - verificato HTTP 403 sulla directory `config` prima di inserirvi valori
+    reali; il file effettivo resta ignorato da Git e il repository contiene
+    soltanto l'esempio senza segreti;
+  - ripristinato l'accesso database dal pannello, invalidando la password
+    precedentemente esposta senza modificare dati o schema; Altervista usa la
+    password locale facoltativa vuota;
+  - verificati `/health` HTTP 200, manifest anonimo HTTP 401 e manifest
+    autenticato HTTP 200 con tutte le otto entità;
+  - rilevati due scostamenti bloccanti nel database remoto: `ricovero` 12.001
+    anziché 12.000 e `patologia_ricovero` 20.493 anziché 20.492; nessuna riga è
+    stata modificata e la migrazione massiva non è stata avviata;
+  - HTTPS resta non validabile per `ERR_CERT_AUTHORITY_INVALID`; non è stato
+    introdotto alcun bypass TLS;
+  - rimossi i diagnostici pubblici; `public` contiene soltanto `.htaccess`,
+    `index.php` e `health`, mentre il vecchio sito, il Progetto 1 e il branch
+    `consegna` sono rimasti invariati;
+  - superati 6 test PHP, lint di 23 file, runner rigoroso Java/PHP/Django e
+    build temporanea del pacchetto con 119 payload; il candidato `dist` non è
+    stato rigenerato;
+  - in attesa della revisione Work e di un'eventuale nuova autorizzazione per
+    riconciliare i due record eccedenti e risolvere HTTPS.
+
 - [ ] **T12 - Branch GitHub minimale di consegna**
   - salvata e pubblicata l'autorizzazione Work su `main` nel commit
     `2b86cb85887883b288898b993d286c496351f796`;

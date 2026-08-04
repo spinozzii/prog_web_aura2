@@ -475,6 +475,18 @@ Assert-RequiredFile `
     -RelativePath 'source/remote-php/public/index.php'
 Assert-RequiredFile `
     -ActualFiles $actualFileMap `
+    -RelativePath 'source/remote-php/config/.htaccess'
+Assert-RequiredFile `
+    -ActualFiles $actualFileMap `
+    -RelativePath 'source/remote-php/config/local.php.example'
+Assert-RequiredFile `
+    -ActualFiles $actualFileMap `
+    -RelativePath 'source/remote-php/src/RuntimeConfig.php'
+Assert-RequiredFile `
+    -ActualFiles $actualFileMap `
+    -RelativePath 'source/remote-php/tests/RuntimeConfigTest.php'
+Assert-RequiredFile `
+    -ActualFiles $actualFileMap `
     -RelativePath 'source/remote-php/README.md'
 Assert-RequiredFile `
     -ActualFiles $actualFileMap `
@@ -628,7 +640,7 @@ if ($configFiles.Count -eq 0) {
     throw 'Mancano le configurazioni di esempio.'
 }
 $remoteSourceFiles = @($actualFiles | Where-Object {
-    $_.RelativePath -match '^source/remote-php/(public|src|tests)/'
+    $_.RelativePath -match '^source/remote-php/(config|public|src|tests)/'
 })
 $bridgeSourceFiles = @($actualFiles | Where-Object {
     $_.RelativePath -match '^source/bridge-servlet/(core|tomcat9|tomcat11)/src/'

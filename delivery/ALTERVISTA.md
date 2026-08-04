@@ -11,26 +11,42 @@ Creare sullo spazio Altervista una cartella dedicata, per esempio
 ```text
 drive-aura-api/
   remote-php/
+    config/
+      .htaccess
     public/
     src/
   shared/
     entity-schema.json
 ```
 
-Le cartelle provengono da `source\remote-php` e `source\shared`. Non caricare
-test, documenti, dump, WAR o wheel. Il percorso pubblico è
+Le cartelle provengono dai sorgenti `remote-php` e `shared`. Non caricare
+test, documenti, dump, WAR o wheel. Dalla directory `config` caricare soltanto
+il `.htaccess` di protezione; il file reale `local.php` va creato
+esclusivamente sul server usando `config/local.php.example` come modello. Il
+percorso pubblico è
 `/drive-aura-api/remote-php/public`; il router supporta questo prefisso.
 
 ## Configurazione privata
 
-1. Aprire `remote-php/public/.htaccess` sul server.
-2. Conservare le regole `DirectoryIndex` e `RewriteRule` già presenti.
-3. Copiare in testa le righe di
-   `config/altervista-setenv.example.htaccess`.
-4. Sostituire tutti i placeholder soltanto sul server.
+1. Caricare `remote-php/config/.htaccess` prima di qualunque credenziale.
+2. Creare nella stessa directory un file di prova privo di segreti e
+   richiederlo tramite URL diretto. Proseguire soltanto se la risposta è 403 o
+   404, quindi rimuovere il file di prova.
+3. Creare sul server `remote-php/config/local.php` copiando la struttura di
+   `remote-php/config/local.php.example` e sostituire tutti i placeholder.
+4. Non caricare `local.php` dal computer di sviluppo, non collocarlo sotto
+   `public` e non aggiungerlo a Git: il file reale è server-only e non fa
+   parte del pacchetto.
 5. Usare il database del Progetto 1 e un utente che non richieda permessi di
    scrittura per la prova, se Altervista permette di crearne uno.
 6. Usare due segreti casuali distinti per API e cursori.
+
+Le variabili d'ambiente omonime, quando realmente disponibili a PHP, hanno
+precedenza chiave per chiave sul file. Il fallback è necessario perché alcuni
+account Altervista accettano `SetEnv` nel pannello ma non propagano i valori a
+`getenv()`. Non lasciare direttive contenenti segreti in
+`remote-php/public/.htaccess`: quel file deve contenere soltanto le regole di
+routing.
 
 Lasciare i timeout di esempio a 3 secondi per la connessione PDO e 8 secondi
 per ogni `SELECT`, oppure scegliere interi rispettivamente negli intervalli
@@ -41,32 +57,42 @@ il servizio applica il limite query nativo dopo aver rilevato la versione:
 Se l'API risponde `SOURCE_TIMEOUT_UNSUPPORTED`, verificare dal pannello la
 versione del database e non aggiungere comandi SQL non supportati.
 
-Se l'hosting rifiuta la direttiva `SetEnv`, interrompere la configurazione:
-non inserire segreti in `index.php` e non rendere pubblico un file di
-credenziali. Verificare dal pannello Altervista il metodo supportato per
-variabili d'ambiente prima di proseguire.
+Se il diniego della directory `config` non produce 403 o 404, interrompere la
+configurazione: non inserire segreti in `index.php`, in `.htaccess`, sotto
+`public` o in qualunque file raggiungibile via HTTP.
 
 ## Esito della prova reale del 4 agosto 2026
 
 Sull'account verificato il pannello conserva le direttive `SetEnv`, ma PHP non
-le riceve tramite `getenv()`. Health risponde HTTP 200; il manifest anonimo si
-arresta invece con HTTP 503 e `SERVICE_NOT_CONFIGURED` prima
-dell'autenticazione e prima dell'accesso al database. Non configurare la
-servlet verso questo endpoint finché il blocco non è risolto.
+le riceve tramite `getenv()`. Il fallback server-only è stato quindi pubblicato
+e collaudato: health risponde HTTP 200, il manifest anonimo HTTP 401 e il
+manifest autenticato HTTP 200 con otto entità.
 
-La configurazione era stata inizialmente caricata come file pubblico
-`htaccess`: è stata rinominata `.htaccess`, i segreti API/cursore sono stati
-ruotati e tutti i diagnostici sono stati rimossi. Poiché anche la credenziale
-database era nel file pubblico, va ruotata dal pannello prima dell'uso reale.
-La rotazione non è compresa nella prova perché il database non era
-autorizzato alle modifiche.
+La password presente nell'iniziale file pubblico `htaccess` è stata invalidata
+tramite il ripristino accesso del pannello, senza modificare dati o schema. Il
+file pubblico ora contiene soltanto il routing; i segreti API e cursore sono
+stati ruotati e il file server-only è protetto da un diniego HTTP 403
+verificato prima di inserirvi valori reali. Tutti i diagnostici sono stati
+rimossi.
 
-Il fallback proposto è un caricatore applicativo a whitelist per un file
-server-only `remote-php/config/local.php`, già escluso da Git, collocato fuori
-da `public` e protetto da accesso HTTP. Il diniego HTTP va verificato prima di
-inserire valori reali. Questa modifica richiede un'attività separata; non
-inserire segreti nel repository né in `index.php`. Dettagli ed evidenze sono
-in `docs/VERIFICA_ALTERVISTA.md`.
+Il collaudo ha però osservato 12.001 `ricovero` e 20.493
+`patologia_ricovero`, una riga in più per entrambe le entità rispetto al
+dataset atteso. HTTPS restituisce inoltre `ERR_CERT_AUTHORITY_INVALID`. Non
+configurare la servlet verso questo endpoint, non disabilitare TLS e non
+correggere il database senza una nuova autorizzazione.
+
+Il fallback adottato è un caricatore applicativo a whitelist per il file
+server-only `remote-php/config/local.php`, escluso da Git, collocato fuori da
+`public` e protetto da accesso HTTP. L'ambiente ha precedenza e il diniego HTTP
+va verificato prima di inserire valori reali. `GET /health` resta indipendente
+dalla configurazione e dal database. Dettagli ed evidenze osservate sul server
+sono in `docs/VERIFICA_ALTERVISTA.md`.
+
+Questa correzione di pubblicazione è successiva al candidato offline già
+fissato: non rigenerare `dist/drive-aura-51-offline.zip` né modificare il
+branch di consegna per applicarla al server. Il pacchetto conserva i propri
+hash storici; il file `local.php` reale non deve comunque comparire in alcun
+archivio.
 
 ## Controllo senza esporre segreti
 

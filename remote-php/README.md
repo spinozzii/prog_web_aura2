@@ -30,8 +30,16 @@ versionata `shared/entity-schema.json`. L'ordine del manifest è:
 `cittadino`, `patologia`, `patologia_cronica`, `patologia_mortale`,
 `ospedale`, `ricovero`, `patologia_ricovero`, `progressivo_ricovero`.
 
-Richiedono `Authorization: Bearer ...`. La configurazione arriva soltanto
-dall'ambiente:
+Richiedono `Authorization: Bearer ...`. La configurazione viene risolta, per
+ogni chiave, con questa precedenza:
+
+1. variabile d'ambiente;
+2. file server-only `config/local.php`, soltanto se la variabile è assente.
+
+Il secondo livello serve per hosting, come l'account Altervista verificato,
+che possono conservare direttive Apache `SetEnv` senza renderle disponibili a
+PHP tramite `getenv()`. Il file deve restituire esclusivamente le chiavi in
+whitelist:
 
 - `REMOTE_DB_DSN`, con DSN `mysql:`; se manca `charset`, viene aggiunto
   `utf8mb4`;
@@ -44,9 +52,23 @@ dall'ambiente:
 - `REMOTE_DB_QUERY_TIMEOUT_SECONDS`, facoltativo, predefinito a 8 secondi,
   ammesso da 1 a 120.
 
+`config/local.php.example` è l'unico modello sicuro tracciato. Copiarlo come
+`config/local.php` esclusivamente sul server e sostituire lì i placeholder;
+il file reale è ignorato da Git e non viene inserito nel pacchetto. I valori
+d'ambiente restano sempre prioritari, anche quando il file locale esiste.
+
+La directory `config` contiene un `.htaccess` che nega ogni accesso HTTP. Su
+un hosting in cui la radice dell'account è pubblica, essere fuori da `public`
+non è da solo una garanzia: caricare prima il diniego, usare un file di prova
+privo di segreti e verificare che l'URL diretto sotto `config` restituisca 403
+o 404. Inserire valori reali soltanto dopo questa verifica; se il file è
+raggiungibile, interrompere la configurazione.
+
 I valori timeout devono essere interi ASCII positivi negli intervalli indicati;
-una configurazione vuota, con spazi, decimali o fuori limite viene rifiutata
-senza mostrare DSN, credenziali o query. `PDO::ATTR_TIMEOUT` limita la fase di
+una configurazione vuota, con spazi, decimali o fuori limite viene rifiutata,
+con la sola eccezione di `REMOTE_DB_PASSWORD`, che può essere vuota quando il
+provider permette l'accesso locale senza password. Gli errori non mostrano
+DSN, credenziali o query. `PDO::ATTR_TIMEOUT` limita la fase di
 connessione e non l'esecuzione SQL. Per ogni `SELECT`, dopo aver rilevato
 driver e versione, il servizio applica invece il limite nativo verificato:
 `SET STATEMENT max_statement_time=... FOR SELECT` su MariaDB 10.1.1+ oppure
@@ -57,6 +79,11 @@ comandi SQL ipotetici alla sorgente.
 Il timeout PHP o del web server è un terzo limite indipendente, configurato
 dall'hosting. Deve essere maggiore del limite query e non viene usato come
 sostituto del timeout PDO o del limite MySQL/MariaDB.
+
+`GET /health` termina prima di caricare la configurazione applicativa e non
+richiede né variabili d'ambiente, né `config/local.php`, né accesso al
+database. Le API dati, invece, rifiutano una configurazione assente o non
+valida con un errore pubblico sintetico.
 
 La sorgente di produzione usa soltanto PDO e query `SELECT` preparate sulle
 tabelle in whitelist. La paginazione usa l'intera chiave primaria, inclusa la
@@ -83,6 +110,7 @@ Non è richiesto Composer. I test isolati richiedono PHP CLI:
 php tests/HealthResponseTest.php
 php tests/PatologiaCanonicalizerTest.php
 php tests/PatologiaApiTest.php
+php tests/RuntimeConfigTest.php
 php tests/PdoTimeoutPolicyTest.php
 php tests/PdoTimeoutIntegrationTest.php
 ```

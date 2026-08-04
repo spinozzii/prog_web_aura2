@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'REMOTE_DB_DSN' => 'mysql:host=database-host;dbname=database-name;charset=utf8mb4',
+    'REMOTE_DB_USER' => 'replace-with-database-user',
+    'REMOTE_DB_PASSWORD' => 'replace-with-database-password',
+    'REMOTE_API_SECRET' => 'replace-with-a-long-random-api-secret',
+    'REMOTE_CURSOR_SECRET' => 'replace-with-a-different-long-random-cursor-secret',
+    'REMOTE_CURSOR_TTL_SECONDS' => '900',
+    'REMOTE_DB_CONNECT_TIMEOUT_SECONDS' => '3',
+    'REMOTE_DB_QUERY_TIMEOUT_SECONDS' => '8',
+];

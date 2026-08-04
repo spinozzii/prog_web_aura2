@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../src/HealthResponse.php';
 require_once __DIR__ . '/../src/ApiException.php';
 require_once __DIR__ . '/../src/ApiResponse.php';
+require_once __DIR__ . '/../src/RuntimeConfig.php';
 require_once __DIR__ . '/../src/EntitySchema.php';
 require_once __DIR__ . '/../src/SchemaRegistry.php';
 require_once __DIR__ . '/../src/EntityCanonicalizer.php';
@@ -21,6 +22,7 @@ use DriveAura\Remote\CursorCodec;
 use DriveAura\Remote\HealthResponse;
 use DriveAura\Remote\MigrationApi;
 use DriveAura\Remote\PdoEntitySource;
+use DriveAura\Remote\RuntimeConfig;
 use DriveAura\Remote\SchemaRegistry;
 
 ini_set('display_errors', '0');
@@ -80,9 +82,10 @@ try {
         $query[(string) $name] = $value;
     }
 
-    $apiSecret = getenv('REMOTE_API_SECRET');
-    $cursorSecret = getenv('REMOTE_CURSOR_SECRET');
-    $rawCursorTtl = getenv('REMOTE_CURSOR_TTL_SECONDS');
+    $runtimeConfig = RuntimeConfig::fromEnvironment();
+    $apiSecret = $runtimeConfig->get('REMOTE_API_SECRET');
+    $cursorSecret = $runtimeConfig->get('REMOTE_CURSOR_SECRET');
+    $rawCursorTtl = $runtimeConfig->get('REMOTE_CURSOR_TTL_SECONDS');
     $cursorTtl = 900;
     if ($rawCursorTtl !== false && $rawCursorTtl !== '') {
         if (!is_string($rawCursorTtl) || preg_match('/\A[1-9][0-9]*\z/D', $rawCursorTtl) !== 1) {
@@ -94,7 +97,7 @@ try {
     $cursorCodec = new CursorCodec(is_string($cursorSecret) ? $cursorSecret : '', null, $cursorTtl);
     $registry = SchemaRegistry::fromFile(dirname(__DIR__, 2) . '/shared/entity-schema.json');
     $api = new MigrationApi(
-        PdoEntitySource::fromEnvironment(),
+        PdoEntitySource::fromConfig($runtimeConfig->all()),
         $registry,
         is_string($apiSecret) ? $apiSecret : '',
         $cursorCodec,

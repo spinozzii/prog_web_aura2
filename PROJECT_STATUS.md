@@ -8,51 +8,51 @@ intermedia e servizio Django locale verso PostgreSQL.
 T00, T01, T01.1, T01.2, T02.1, T02.2, T03, T07, T09 e T09.1 sono
 completate. T11 e T11.1 hanno concluso gli audit tecnici e sono in revisione
 Work. Il verdetto T11.1 `CONSEGNABILE` resta riferito al pacchetto e alle prove
-locali; la successiva prova Altervista ha rilevato un blocco dell'ambiente
-remoto descritto sotto.
+locali; T13 ha reso operativo il servizio PHP su Altervista, ma ha rilevato
+due conteggi remoti non conformi e un certificato HTTPS non valido.
 
 T12 ha pubblicato su GitHub il branch orfano `consegna` ed è in revisione
 Work. Il branch contiene esclusivamente i due allegati indicati nella bozza
 email; `main` è rimasto il repository tecnico completo.
 
-La prova Altervista autorizzata direttamente il 4 agosto 2026 ha pubblicato e
-ripulito il componente PHP, ma ha rilevato un blocco dell'hosting: `SetEnv`
-non viene propagato a PHP. Health risponde HTTP 200, mentre il manifest si
-arresta con HTTP 503 prima dell'autenticazione. `TASKS.md` resta invariato
-perché non è stato fornito un identificativo di attività da spostare in
-revisione e non ne viene inventato uno autonomamente.
+T13 è in revisione Work e `AUTORIZZATA` è `Nessuna`. Il fallback server-only
+ha risolto il blocco `SetEnv`; health, autenticazione e manifest sono
+raggiungibili. L'endpoint non deve però essere usato dalla servlet finché il
+dataset remoto e HTTPS non vengono riconciliati con una nuova autorizzazione.
 
 ## Esito verifica Altervista del 4 agosto 2026
 
 - Base URL osservato:
   `http://motorizzami.altervista.org/drive-aura-api/remote-php/public`.
-- Il file iniziale `htaccess`, raggiungibile come file ordinario, è stato
-  rinominato `.htaccess`. Le otto variabili richieste sono presenti, non vuote,
-  senza placeholder e nell'ordine previsto; i segreti API/cursore sono stati
-  ruotati e sono distinti. Nessun valore è stato registrato.
-- `GET /health` ha restituito HTTP 200 con `service=remote-php` e `status=ok`.
-- `GET /api/v1/manifest` senza token ha restituito HTTP 503
-  `SERVICE_NOT_CONFIGURED`, non il 401 atteso: PHP non vede il segreto del
-  cursore. Un controllo nello stesso contesto Apache ha confermato che non
-  vede neppure il segreto API.
-- Il manifest autenticato non è stato eseguito e gli otto conteggi non sono
-  stati dichiarati osservati. Il fallimento precede l'accesso PDO; il database
-  Altervista non è stato interrogato né modificato.
-- Rimossi `manifest-test.php`, `manifest-local-test.php`, il duplicato vuoto,
-  `test.php` e la pagina di route effimera. Il `public` contiene soltanto
-  `.htaccess`, `index.php` e `health`.
-- Il vecchio sito è rimasto intatto e il Progetto 1 è rimasto in sola lettura.
-  Non è stata lanciata alcuna migrazione massiva.
-- Poiché il file iniziale esponeva la configurazione, la password database va
-  ruotata prima dell'uso reale; la rotazione non è stata eseguita perché le
-  modifiche al database erano vietate.
-- HTTPS non è stato validato: il controllo automatizzato ha ricevuto
-  `ERR_CERT_AUTHORITY_INVALID`. La servlet non deve usare l'endpoint finché un
-  URL HTTPS valido non è stato osservato e verificato.
-- Il fallback proposto è un caricatore a whitelist per un file server-only
-  `remote-php/config/local.php`, già ignorato da Git, fuori da `public` e con
-  accesso HTTP negato e verificato prima di inserirvi segreti. Richiede una
-  nuova autorizzazione. Rapporto completo: `docs/VERIFICA_ALTERVISTA.md`.
+- Il codice risolve le otto chiavi da ambiente e poi dal file server-only
+  `remote-php/config/local.php`. Il file reale è ignorato e non tracciato;
+  l'esempio contiene soltanto placeholder.
+- Prima di inserire valori reali è stato verificato HTTP 403 su un file
+  innocuo sotto `config`; lo stesso diniego è stato riconfermato direttamente
+  su `local.php`. Le sonde sono state rimosse.
+- La password precedentemente esposta è stata invalidata con `Ripristina
+  accesso` dal pannello. Altervista permette la password locale vuota; dati e
+  schema non sono stati modificati.
+- `GET /health` ha restituito HTTP 200 con `service=remote-php` e `status=ok`;
+  il manifest anonimo ha restituito HTTP 401 `UNAUTHORIZED` e quello
+  autenticato HTTP 200 con otto entità.
+- Conteggi conformi: `cittadino` 3.200, `patologia` 200,
+  `patologia_cronica` 143, `patologia_mortale` 81, `ospedale` 30 e
+  `progressivo_ricovero` 30. Conteggi non conformi: `ricovero` 12.001 invece
+  di 12.000 e `patologia_ricovero` 20.493 invece di 20.492.
+- Il database non è stato corretto e la migrazione massiva non è stata
+  avviata. Il vecchio sito, il Progetto 1 e `origin/consegna` sono rimasti
+  invariati.
+- Il `public` contiene soltanto `.htaccess`, `index.php` e `health`; il file
+  Apache pubblico contiene solo routing e non sono rimasti diagnostici o
+  segreti raggiungibili via URL.
+- HTTPS continua a fallire con `ERR_CERT_AUTHORITY_INVALID`; non è stato usato
+  alcun bypass TLS e nel pannello non è stata individuata un'opzione di
+  attivazione certificato.
+- Superati sei test PHP, lint di 23 file, runner rigoroso Java/PHP/Django e
+  build di packaging in copia temporanea con 119 payload. `dist` e il branch
+  `consegna` non sono stati rigenerati o modificati.
+- Rapporto completo: `docs/VERIFICA_ALTERVISTA.md`.
 
 ## Esito T12
 
@@ -499,9 +499,9 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere una nuova attività autorizzata per implementare il caricatore di
-configurazione server-only, ruotare la credenziale database dal pannello,
-abilitare HTTPS valido e ripetere 401 e manifest autenticato. `AUTORIZZATA` è
+Attendere la revisione Work di T13. Una nuova autorizzazione esplicita è
+necessaria per identificare e gestire le due righe eccedenti nel database
+Altervista e per qualunque intervento sul certificato HTTPS. `AUTORIZZATA` è
 `Nessuna`; l'email resta una bozza e non deve essere inviata automaticamente.
-Non lanciare la migrazione massiva, non unire `consegna` in `main` e non creare
-tag o release senza una nuova autorizzazione.
+Non lanciare la migrazione massiva, non modificare il Progetto 1, non unire o
+modificare `consegna` e non creare tag o release.

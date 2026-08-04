@@ -4,113 +4,128 @@ Data: 4 agosto 2026.
 
 ## Esito
 
-**BLOCCATA — il servizio PHP non riceve le variabili `SetEnv`.**
+**PARZIALMENTE OPERATIVA — API corretta, dataset remoto e HTTPS non conformi.**
 
-Il servizio è pubblicato all'indirizzo osservato:
+Il servizio PHP è pubblicato all'indirizzo:
 
 `http://motorizzami.altervista.org/drive-aura-api/remote-php/public`
 
-`GET /health` risponde HTTP 200 con il contratto atteso:
+Il limite iniziale è risolto: l'account non propaga le direttive `SetEnv` a
+PHP, ma il nuovo caricatore usa il file server-only e permette alle API di
+raggiungere autenticazione e database. Il collaudo osservato ha restituito:
 
-```json
-{"apiVersion":"1.0","service":"remote-php","status":"ok"}
+- `GET /health`: HTTP 200, `service=remote-php`, `status=ok`;
+- `GET /api/v1/manifest` senza Bearer: HTTP 401 `UNAUTHORIZED`;
+- la stessa richiesta con Bearer corretto: HTTP 200 e otto entità.
+
+La pubblicazione non è però approvabile come sorgente della servlet: due
+conteggi eccedono di una riga il dataset atteso e l'URL HTTPS non supera la
+validazione del certificato.
+
+## Configurazione server-only
+
+Il codice risolve ciascuna delle otto chiavi autorizzate con questa precedenza:
+
+1. variabile d'ambiente, se presente;
+2. `drive-aura-api/remote-php/config/local.php`, soltanto per le chiavi
+   mancanti.
+
+Il repository contiene solo `remote-php/config/local.php.example`, privo di
+valori reali. `local.php` è ignorato da Git, non è stato creato nel checkout e
+non appartiene al candidato offline.
+
+Sul server è stato caricato prima `remote-php/config/.htaccess`. Un file di
+prova innocuo nella stessa directory ha restituito HTTP 403 tramite URL
+diretto; il file è stato rimosso prima di creare `local.php`. Dopo la
+configurazione, una richiesta diretta allo stesso `local.php` ha riconfermato
+HTTP 403. Il `.htaccess` sotto `public` contiene ora soltanto le regole di
+routing e nessuna direttiva `SetEnv` con credenziali.
+
+I segreti API e cursore sono lunghi, casuali e distinti. Nessun valore reale è
+stato registrato nella documentazione, nei log o nel repository.
+
+## Rotazione dell'accesso database
+
+La configurazione era stata inizialmente caricata come normale file pubblico
+`htaccess`; la password allora presente deve quindi essere considerata
+compromessa. Con l'autorizzazione T13 è stato eseguito dal pannello Altervista
+`Ripristina accesso`, che ha confermato il ripristino e ha invalidato la
+password precedente. L'account accetta l'accesso locale con password
+facoltativa vuota, valore usato dal file server-only.
+
+Il ripristino non ha modificato dati o schema. Non sono state eseguite query
+di scrittura, importazioni o migrazioni.
+
+## Conteggi osservati
+
+| Entità | Atteso | Osservato | Esito |
+|---|---:|---:|---|
+| `cittadino` | 3.200 | 3.200 | conforme |
+| `patologia` | 200 | 200 | conforme |
+| `patologia_cronica` | 143 | 143 | conforme |
+| `patologia_mortale` | 81 | 81 | conforme |
+| `ospedale` | 30 | 30 | conforme |
+| `ricovero` | 12.000 | 12.001 | **una riga eccedente** |
+| `patologia_ricovero` | 20.492 | 20.493 | **una riga eccedente** |
+| `progressivo_ricovero` | 30 | 30 | conforme |
+
+Il manifest autenticato è quindi strutturalmente corretto, ma il database
+Altervista non coincide con il dataset massivo verificato in T07. Come
+richiesto, il collaudo si è fermato senza modificare o cancellare righe e
+senza avviare la migrazione massiva.
+
+## HTTPS
+
+Il tentativo su
+`https://motorizzami.altervista.org/drive-aura-api/remote-php/public/health`
+ha restituito `ERR_CERT_AUTHORITY_INVALID`. Nel pannello già autenticato non è
+stata trovata un'opzione HTTPS/SSL o certificato nelle funzioni disponibili.
+
+Non è stato usato alcun bypass della verifica TLS. Finché il provider non
+espone un certificato valido, l'endpoint non deve essere configurato nella
+servlet né usato per una migrazione reale.
+
+## Pulizia e confini verificati
+
+Al termine la cartella pubblica contiene soltanto:
+
+```text
+.htaccess
+health/
+index.php
 ```
 
-`GET /api/v1/manifest` senza token non arriva invece al controllo di
-autenticazione: risponde HTTP 503 con `SERVICE_NOT_CONFIGURED`, indicando che
-il segreto del cursore non è disponibile nel processo PHP. Il manifest
-autenticato e i suoi conteggi non sono quindi stati dichiarati verificati.
+Non sono presenti `htaccess`, `manifest-test.php`,
+`manifest-local-test.php`, `route-check.html` o altri diagnostici pubblici.
+La directory `config` contiene soltanto il diniego `.htaccess` e il file
+server-only `local.php`; la directory `src` contiene il nuovo
+`RuntimeConfig.php` e il `PdoEntitySource.php` aggiornato, senza file di prova.
 
-## Configurazione controllata
+Il vecchio sito non è stato cancellato. Il Progetto 1 è rimasto in sola
+lettura, il branch `consegna` non è stato modificato e il database non è stato
+alterato. Non è stata lanciata la migrazione massiva.
 
-Nel caricamento iniziale la configurazione era stata nominata `htaccess`,
-senza il punto iniziale, ed era quindi un normale file pubblico anziché una
-configurazione Apache. Il file è stato rinominato `.htaccess`; al termine il
-file ordinario `htaccess` non è più presente nel `public`.
+## Verifiche locali
 
-Il sorgente `.htaccess` salvato dal pannello contiene, nell'ordine richiesto,
-le otto variabili seguenti, tutte non vuote e prive di placeholder:
+- PHP 8.3.32: sei comandi di test superati; il test PDO d'integrazione ha
+  prodotto lo skip previsto quando non richiesto;
+- lint PHP: 23 file su 23 validi;
+- runner rigoroso: contratti Java e PHP superati, 29 test Django superati con
+  uno skip previsto, system check senza problemi;
+- i due script PowerShell di packaging modificati superano il parser;
+- una build in copia temporanea ha superato l'integrità con 119 payload,
+  2 WAR, 7 wheel e 2 PDF;
+- il candidato `dist` e il branch orfano `consegna` non sono stati rigenerati
+  o modificati.
 
-1. `REMOTE_DB_DSN`;
-2. `REMOTE_DB_USER`;
-3. `REMOTE_DB_PASSWORD`;
-4. `REMOTE_API_SECRET`;
-5. `REMOTE_CURSOR_SECRET`;
-6. `REMOTE_CURSOR_TTL_SECONDS`;
-7. `REMOTE_DB_CONNECT_TIMEOUT_SECONDS`;
-8. `REMOTE_DB_QUERY_TIMEOUT_SECONDS`.
+## Limite residuo e prossimo passo
 
-I segreti API e cursore sono stati ruotati con valori casuali lunghi e
-distinti. Nessun valore è stato copiato nella documentazione o nel repository.
-Le direttive `DirectoryIndex`, `RewriteEngine` e `RewriteRule` sono rimaste
-presenti.
+Il fallback di configurazione è funzionante e non espone segreti. Restano due
+blocchi esterni al codice pubblicato:
 
-Una richiesta eseguita nel vero contesto Apache ha però confermato che
-`getenv()` non riceve neppure `REMOTE_API_SECRET`. Una pagina diagnostica
-senza segreti, con timeout HTTP di 10 secondi, ha riconfermato in parallelo:
+1. identificare, con una nuova autorizzazione, le due righe eccedenti e
+   decidere se correggere il database o aggiornare la sorgente ufficiale;
+2. ottenere o attivare un certificato HTTPS valido sul dominio Altervista.
 
-- health: HTTP 200 e `status=ok`;
-- manifest anonimo: HTTP 503 e `SERVICE_NOT_CONFIGURED` sul segreto cursore.
-
-Il pannello PHP osservato permette di modificare `.htaccess`, ma non espone
-un gestore separato di variabili d'ambiente. La configurazione è quindi
-conservata correttamente, ma il metodo `SetEnv` non è operativo per PHP su
-questo account.
-
-## Pulizia e confini
-
-Sono stati rimossi dal `public`:
-
-- `manifest-test.php`;
-- `manifest-local-test.php`;
-- `manifest-local-test.php.php`;
-- `test.php`;
-- la pagina effimera `route-check.html`.
-
-Al termine il `public` contiene soltanto `.htaccess`, `index.php` e la
-directory `health`. Non è stata eseguita alcuna query di migrazione, non è
-stato modificato il database Altervista, il vecchio sito non è stato
-cancellato e il Progetto 1 è rimasto in sola lettura.
-
-Poiché il file iniziale senza punto era pubblicamente indirizzabile, la
-password del database deve essere considerata esposta e va ruotata dal
-pannello prima dell'attivazione definitiva. La rotazione non è stata eseguita
-per rispettare il divieto di modificare il database.
-
-Il tentativo HTTPS automatizzato non ha superato la validazione del
-certificato (`ERR_CERT_AUTHORITY_INVALID`). Prima di configurare la servlet va
-quindi abilitato o verificato un URL HTTPS con certificato valido.
-
-## Conteggi attesi ma non osservati
-
-Il manifest autenticato dovrà essere rieseguito e confrontato con:
-
-| Entità | Righe attese |
-|---|---:|
-| `cittadino` | 3.200 |
-| `patologia` | 200 |
-| `patologia_cronica` | 143 |
-| `patologia_mortale` | 81 |
-| `ospedale` | 30 |
-| `ricovero` | 12.000 |
-| `patologia_ricovero` | 20.492 |
-| `progressivo_ricovero` | 30 |
-
-## Soluzione proposta
-
-Serve una modifica separatamente autorizzata e minima:
-
-1. aggiungere al front controller un caricatore a whitelist per un file
-   server-only `remote-php/config/local.php`, già escluso da Git;
-2. collocare il file fuori da `public` e negarne esplicitamente l'accesso HTTP;
-3. verificare il diniego HTTP prima di inserirvi i valori reali;
-4. caricare il file manualmente soltanto su Altervista, senza includerlo nel
-   repository o nel pacchetto pubblico;
-5. ruotare la password database e mantenere distinti i segreti API/cursore;
-6. abilitare un certificato HTTPS valido;
-7. ripetere health, 401 anonimo e manifest autenticato con otto entità e
-   conteggi attesi.
-
-Non va inserito alcun segreto in `index.php`. Una `.user.ini` non deve essere
-considerata equivalente a un gestore di variabili d'ambiente senza una prova
-specifica del provider.
+Fino ad allora lo stato remoto resta parzialmente operativo e non va usato
+per la migrazione completa.

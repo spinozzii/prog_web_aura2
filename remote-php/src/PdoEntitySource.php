@@ -37,14 +37,26 @@ final class PdoEntitySource implements EntitySource
 
     public static function fromEnvironment(): self
     {
+        return self::fromConfig([
+            'REMOTE_DB_DSN' => getenv('REMOTE_DB_DSN'),
+            'REMOTE_DB_USER' => getenv('REMOTE_DB_USER'),
+            'REMOTE_DB_PASSWORD' => getenv('REMOTE_DB_PASSWORD'),
+            'REMOTE_DB_CONNECT_TIMEOUT_SECONDS' => getenv('REMOTE_DB_CONNECT_TIMEOUT_SECONDS'),
+            'REMOTE_DB_QUERY_TIMEOUT_SECONDS' => getenv('REMOTE_DB_QUERY_TIMEOUT_SECONDS'),
+        ]);
+    }
+
+    /** @param array<string, mixed> $config */
+    public static function fromConfig(array $config): self
+    {
         return new self(
             null,
             [
-                'dsn' => getenv('REMOTE_DB_DSN'),
-                'user' => getenv('REMOTE_DB_USER'),
-                'password' => getenv('REMOTE_DB_PASSWORD'),
+                'dsn' => $config['REMOTE_DB_DSN'] ?? false,
+                'user' => $config['REMOTE_DB_USER'] ?? false,
+                'password' => $config['REMOTE_DB_PASSWORD'] ?? false,
             ],
-            PdoTimeoutPolicy::fromEnvironment()
+            PdoTimeoutPolicy::fromArray($config)
         );
     }
 

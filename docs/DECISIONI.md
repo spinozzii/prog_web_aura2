@@ -146,10 +146,28 @@ Motivazione: nessun errore di rete, lock o processo deve trattenere
 indefinitamente il collaudo; PowerShell 5.1 deve inoltre diagnosticare i
 percorsi troppo lunghi prima della copia o dell'installazione.
 
+### D18 - Fallback PHP server-only su hosting senza `SetEnv`
+
+Il servizio PHP risolve ogni chiave prima dalle variabili d'ambiente e, se la
+chiave è assente, dal file server-only `remote-php/config/local.php`. Il file
+accetta soltanto una whitelist fissa, è ignorato da Git e non viene incluso
+nel pacchetto; il repository conserva unicamente `local.php.example`.
+
+La directory `config` nega l'accesso HTTP. Prima di inserire valori reali, il
+deploy deve verificare con un file innocuo che un URL diretto restituisca 403
+o 404; essere fuori da `public` non è considerato sufficiente quando la radice
+dell'account può essere esposta. `/health` resta indipendente dalla
+configurazione.
+
+Motivazione: l'account Altervista osservato conserva le direttive `SetEnv` ma
+non le propaga a `getenv()`. Il fallback mantiene i segreti fuori dal codice e
+dalla cartella pubblica senza dipendenze aggiuntive e senza alterare il
+contratto HTTP.
+
 ## Decisioni aperte
 
 - limite dei lotti da adottare sull'eventuale ambiente Altervista;
-- URL pubblico definitivo del servizio PHP.
+- URL HTTPS definitivo del servizio PHP con certificato valido.
 
 ## Modello per nuove decisioni
 

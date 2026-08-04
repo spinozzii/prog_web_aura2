@@ -8,10 +8,11 @@ inviata.
 ## Scelta e architettura
 
 - [x] La consegna dichiara esplicitamente il caso B.
-- [ ] Il componente remoto PHP è stato caricato sul sito del Progetto 1 e
-      health risponde HTTP 200, ma il manifest resta bloccato: l'account non
-      propaga le direttive `SetEnv` a PHP. Vedere
-      `docs/VERIFICA_ALTERVISTA.md`.
+- [ ] Il componente remoto PHP è stato caricato e il fallback server-only è
+      operativo: health risponde HTTP 200, il manifest anonimo HTTP 401 e il
+      manifest autenticato HTTP 200 con otto entità. La casella resta aperta
+      perché due conteggi remoti eccedono di una riga e HTTPS non supera la
+      validazione del certificato; vedere `docs/VERIFICA_ALTERVISTA.md`.
 - [x] Il servizio locale è Python/Django.
 - [x] Lo strato intermedio è una servlet Java.
 - [x] Il percorso reale dei dati è PHP → servlet → Django → PostgreSQL.
@@ -47,6 +48,9 @@ inviata.
       `WaitForExit()` senza timeout negli script PowerShell.
 - [x] PostgreSQL e PHP/PDO applicano timeout finiti, configurabili e validati.
 - [x] `mvn clean test` rileva ed esegue realmente tre contratti Java.
+- [x] La configurazione PHP usa l'ambiente con precedenza e un fallback
+      server-only a whitelist; il file reale è ignorato da Git, mentre la
+      directory applica un diniego HTTP da verificare prima dei segreti.
 
 ## Compatibilità
 

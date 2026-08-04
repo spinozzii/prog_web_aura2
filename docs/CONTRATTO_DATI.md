@@ -255,11 +255,15 @@ sezione 4.1; l'export restituisce una pagina terminale vuota, Java non invia
 alcun lotto e finalizza con `expectedRowCount` e `expectedBatchCount` entrambi
 zero.
 
-Le API dati richiedono un Bearer proveniente dall'ambiente. Il servizio PHP
-firma il cursore con HMAC e lo lega a entità, dataset e scadenza; Java tratta
-il cursore come opaco. Il servizio Django registra run e lotto nella stessa
-transazione dei dati. Un lotto già registrato con stesso digest e conteggio è
-idempotente; uno con identità uguale e contenuto diverso è un conflitto.
+Le API dati richiedono un Bearer proveniente dalla configurazione esterna al
+codice. Il servizio PHP usa prima la variabile d'ambiente e, soltanto se
+assente, la corrispondente chiave del file server-only
+`remote-php/config/local.php`; il file reale è ignorato da Git e non fa parte
+del pacchetto. Il servizio firma il cursore con HMAC e lo lega a entità,
+dataset e scadenza; Java tratta il cursore come opaco. Il servizio Django
+registra run e lotto nella stessa transazione dei dati. Un lotto già
+registrato con stesso digest e conteggio è idempotente; uno con identità
+uguale e contenuto diverso è un conflitto.
 
 ### 4.3 Estensione eseguibile T03
 

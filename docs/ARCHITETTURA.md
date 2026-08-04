@@ -32,6 +32,21 @@ Responsabilità:
 
 Non contiene codice di importazione e non modifica MySQL.
 
+La configurazione del componente remoto resta esterna al codice. Il loader
+risolve ciascuna chiave prima dall'ambiente e, soltanto quando è assente, dal
+file server-only `remote-php/config/local.php`; il file accetta esclusivamente
+la whitelist prevista per database, autenticazione, cursori e timeout.
+`local.php.example` è il solo modello tracciato, mentre `local.php` è ignorato
+da Git e non appartiene al pacchetto di consegna.
+
+Il fallback è necessario negli hosting che accettano `SetEnv` ma non lo
+propagano a `getenv()`. Il file resta fuori da `public` e la directory
+`config` applica un diniego HTTP. Poiché la radice dell'account può comunque
+essere pubblica, il deploy deve verificare una risposta 403 o 404 su un file
+innocuo nella stessa directory prima di inserire segreti; un esito diverso
+interrompe la configurazione. L'endpoint `/health` risponde prima di caricare
+questa configurazione e resta indipendente dal database.
+
 ### `bridge-servlet`
 
 Responsabilità:
