@@ -12,6 +12,11 @@ stati verificati con scadenze esterne finite. L'unico requisito non osservato
 nel suo ambiente definitivo è la pubblicazione PHP su Altervista, esclusa
 dall'autorizzazione; il componente e le istruzioni restano predisposti.
 
+Aggiornamento del 4 agosto 2026: la prova Altervista successivamente
+autorizzata ha rilevato il blocco `SetEnv` documentato in
+`docs/VERIFICA_ALTERVISTA.md`. Il verdetto sopra resta quindi limitato al
+pacchetto e alle prove locali e non certifica il servizio remoto operativo.
+
 ## Correzioni dell'audit Work
 
 | Rischio | Correzione ed evidenza |
@@ -203,5 +208,9 @@ PK, FK, unicità, domini e progressivi. Il Progetto 1 è pulito e invariato.
 
 ### Problemi residui
 
-Nessun problema tecnico bloccante noto. Email, distribuzione Altervista, tag e
-release non sono stati eseguiti come richiesto.
+Nessun problema tecnico bloccante era noto nei percorsi verificati localmente.
+La successiva prova Altervista del 4 agosto 2026 ha individuato un limite
+dell'ambiente definitivo: le direttive `SetEnv` vengono conservate ma non
+raggiungono PHP, quindi health passa e il manifest risponde 503 prima
+dell'autenticazione. L'evidenza e il fallback proposto sono in
+`docs/VERIFICA_ALTERVISTA.md`. Email, tag e release non sono stati eseguiti.

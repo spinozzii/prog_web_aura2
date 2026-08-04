@@ -33,6 +33,12 @@ SHA-256
 `1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
 Lo stato vincolante resta sempre in `TASKS.md`.
 
+Il 4 agosto 2026 il componente PHP è stato caricato su Altervista e health è
+stato osservato con HTTP 200. La verifica del manifest è però bloccata perché
+l'account non propaga `SetEnv` al processo PHP; non usare ancora l'endpoint
+come sorgente della servlet. L'evidenza è in
+`docs/VERIFICA_ALTERVISTA.md`.
+
 ## Origine dei dati
 
 Il progetto sorgente è:
@@ -49,8 +55,9 @@ Il database contiene:
 - i sottoinsiemi delle patologie e i progressivi dei ricoveri.
 
 Il progetto sorgente è una fonte in sola lettura. Il codice del Progetto 2 vive
-interamente in questa cartella; l'eventuale pubblicazione dell'endpoint PHP su
-Altervista avverrà solo in una fase esplicitamente autorizzata.
+interamente in questa cartella. La prima pubblicazione Altervista è stata
+autorizzata e provata il 4 agosto 2026; ogni ulteriore intervento remoto
+richiede una nuova autorizzazione.
 
 ## Documenti principali
 
@@ -69,6 +76,8 @@ Altervista avverrà solo in una fase esplicitamente autorizzata.
 - `docs/VERIFICA_T09.md`: pacchetto offline, prova pulita, PDF e casi avversi;
 - `docs/VERIFICA_T11.md`: audit conclusivo, prove finali e limiti;
 - `docs/VERIFICA_T11_1.md`: attese finite e verdetto di consegnabilità;
+- `docs/VERIFICA_ALTERVISTA.md`: pubblicazione remota, blocco `SetEnv` e
+  pulizia osservata;
 - `docs/BOZZA_EMAIL_CONSEGNA.md`: bozza non inviata e controlli pre-invio;
 - `docs/RISCHI.md`: rischi e contromisure.
 

@@ -46,6 +46,28 @@ non inserire segreti in `index.php` e non rendere pubblico un file di
 credenziali. Verificare dal pannello Altervista il metodo supportato per
 variabili d'ambiente prima di proseguire.
 
+## Esito della prova reale del 4 agosto 2026
+
+Sull'account verificato il pannello conserva le direttive `SetEnv`, ma PHP non
+le riceve tramite `getenv()`. Health risponde HTTP 200; il manifest anonimo si
+arresta invece con HTTP 503 e `SERVICE_NOT_CONFIGURED` prima
+dell'autenticazione e prima dell'accesso al database. Non configurare la
+servlet verso questo endpoint finché il blocco non è risolto.
+
+La configurazione era stata inizialmente caricata come file pubblico
+`htaccess`: è stata rinominata `.htaccess`, i segreti API/cursore sono stati
+ruotati e tutti i diagnostici sono stati rimossi. Poiché anche la credenziale
+database era nel file pubblico, va ruotata dal pannello prima dell'uso reale.
+La rotazione non è compresa nella prova perché il database non era
+autorizzato alle modifiche.
+
+Il fallback proposto è un caricatore applicativo a whitelist per un file
+server-only `remote-php/config/local.php`, già escluso da Git, collocato fuori
+da `public` e protetto da accesso HTTP. Il diniego HTTP va verificato prima di
+inserire valori reali. Questa modifica richiede un'attività separata; non
+inserire segreti nel repository né in `index.php`. Dettagli ed evidenze sono
+in `docs/VERIFICA_ALTERVISTA.md`.
+
 ## Controllo senza esporre segreti
 
 Sostituire `ACCOUNT` nell'URL:

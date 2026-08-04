@@ -7,13 +7,52 @@ intermedia e servizio Django locale verso PostgreSQL.
 
 T00, T01, T01.1, T01.2, T02.1, T02.2, T03, T07, T09 e T09.1 sono
 completate. T11 e T11.1 hanno concluso gli audit tecnici e sono in revisione
-Work. Il verdetto tecnico T11.1 è `CONSEGNABILE`, con la sola pubblicazione
-Altervista non verificata perché esclusa dall'autorizzazione.
+Work. Il verdetto T11.1 `CONSEGNABILE` resta riferito al pacchetto e alle prove
+locali; la successiva prova Altervista ha rilevato un blocco dell'ambiente
+remoto descritto sotto.
 
 T12 ha pubblicato su GitHub il branch orfano `consegna` ed è in revisione
 Work. Il branch contiene esclusivamente i due allegati indicati nella bozza
-email; `main` è rimasto il repository tecnico completo. Non è autorizzata
-alcuna attività successiva.
+email; `main` è rimasto il repository tecnico completo.
+
+La prova Altervista autorizzata direttamente il 4 agosto 2026 ha pubblicato e
+ripulito il componente PHP, ma ha rilevato un blocco dell'hosting: `SetEnv`
+non viene propagato a PHP. Health risponde HTTP 200, mentre il manifest si
+arresta con HTTP 503 prima dell'autenticazione. `TASKS.md` resta invariato
+perché non è stato fornito un identificativo di attività da spostare in
+revisione e non ne viene inventato uno autonomamente.
+
+## Esito verifica Altervista del 4 agosto 2026
+
+- Base URL osservato:
+  `http://motorizzami.altervista.org/drive-aura-api/remote-php/public`.
+- Il file iniziale `htaccess`, raggiungibile come file ordinario, è stato
+  rinominato `.htaccess`. Le otto variabili richieste sono presenti, non vuote,
+  senza placeholder e nell'ordine previsto; i segreti API/cursore sono stati
+  ruotati e sono distinti. Nessun valore è stato registrato.
+- `GET /health` ha restituito HTTP 200 con `service=remote-php` e `status=ok`.
+- `GET /api/v1/manifest` senza token ha restituito HTTP 503
+  `SERVICE_NOT_CONFIGURED`, non il 401 atteso: PHP non vede il segreto del
+  cursore. Un controllo nello stesso contesto Apache ha confermato che non
+  vede neppure il segreto API.
+- Il manifest autenticato non è stato eseguito e gli otto conteggi non sono
+  stati dichiarati osservati. Il fallimento precede l'accesso PDO; il database
+  Altervista non è stato interrogato né modificato.
+- Rimossi `manifest-test.php`, `manifest-local-test.php`, il duplicato vuoto,
+  `test.php` e la pagina di route effimera. Il `public` contiene soltanto
+  `.htaccess`, `index.php` e `health`.
+- Il vecchio sito è rimasto intatto e il Progetto 1 è rimasto in sola lettura.
+  Non è stata lanciata alcuna migrazione massiva.
+- Poiché il file iniziale esponeva la configurazione, la password database va
+  ruotata prima dell'uso reale; la rotazione non è stata eseguita perché le
+  modifiche al database erano vietate.
+- HTTPS non è stato validato: il controllo automatizzato ha ricevuto
+  `ERR_CERT_AUTHORITY_INVALID`. La servlet non deve usare l'endpoint finché un
+  URL HTTPS valido non è stato osservato e verificato.
+- Il fallback proposto è un caricatore a whitelist per un file server-only
+  `remote-php/config/local.php`, già ignorato da Git, fuori da `public` e con
+  accesso HTTP negato e verificato prima di inserirvi segreti. Richiede una
+  nuova autorizzazione. Rapporto completo: `docs/VERIFICA_ALTERVISTA.md`.
 
 ## Esito T12
 
@@ -460,7 +499,9 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T12. `AUTORIZZATA` è `Nessuna`; l'email resta
-una bozza e non deve essere inviata automaticamente. Non unire `consegna` in
-`main`, non distribuire su Altervista e non creare tag o release senza una
-nuova autorizzazione.
+Attendere una nuova attività autorizzata per implementare il caricatore di
+configurazione server-only, ruotare la credenziale database dal pannello,
+abilitare HTTPS valido e ripetere 401 e manifest autenticato. `AUTORIZZATA` è
+`Nessuna`; l'email resta una bozza e non deve essere inviata automaticamente.
+Non lanciare la migrazione massiva, non unire `consegna` in `main` e non creare
+tag o release senza una nuova autorizzazione.

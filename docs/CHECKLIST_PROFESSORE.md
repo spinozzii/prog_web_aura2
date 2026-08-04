@@ -1,14 +1,17 @@
 # Checklist del docente
 
-Stato verificato nell'audit T11.1 del 31 luglio 2026. Le caselle non selezionate
-sono operazioni proprie dell'invio dell'email, che non è stato eseguito.
+Stato verificato nell'audit T11.1 del 31 luglio 2026 e aggiornato dopo la prova
+Altervista del 4 agosto 2026. Le caselle non selezionate riguardano il blocco
+remoto descritto sotto o operazioni proprie dell'email, che non è stata
+inviata.
 
 ## Scelta e architettura
 
 - [x] La consegna dichiara esplicitamente il caso B.
-- [ ] Il componente remoto PHP è predisposto per il sito del Progetto 1, ma
-      la distribuzione Altervista non fa parte del collaudo autorizzato e non
-      è stata verificata.
+- [ ] Il componente remoto PHP è stato caricato sul sito del Progetto 1 e
+      health risponde HTTP 200, ma il manifest resta bloccato: l'account non
+      propaga le direttive `SetEnv` a PHP. Vedere
+      `docs/VERIFICA_ALTERVISTA.md`.
 - [x] Il servizio locale è Python/Django.
 - [x] Lo strato intermedio è una servlet Java.
 - [x] Il percorso reale dei dati è PHP → servlet → Django → PostgreSQL.
