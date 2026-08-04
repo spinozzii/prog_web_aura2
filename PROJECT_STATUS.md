@@ -15,10 +15,13 @@ T12 ha pubblicato su GitHub il branch orfano `consegna` ed è in revisione
 Work. Il branch contiene esclusivamente i due allegati indicati nella bozza
 email; `main` è rimasto il repository tecnico completo.
 
-T13 è in revisione Work e `AUTORIZZATA` è `Nessuna`. Il fallback server-only
-ha risolto il blocco `SetEnv`; health, autenticazione e manifest sono
-raggiungibili. L'endpoint non deve però essere usato dalla servlet finché il
-dataset remoto e HTTPS non vengono riconciliati con una nuova autorizzazione.
+T13 e T13.1 sono in revisione Work e `AUTORIZZATA` è `Nessuna`. Il fallback
+server-only ha risolto il blocco `SetEnv`; health, autenticazione e manifest
+sono raggiungibili. T13.1 ha provato che la sola rimozione delle due righe
+eccedenti non renderebbe il dataset conforme: esistono anche una riga comune
+divergente e tre progressivi diversi dal seed. Nessun DML è stato eseguito.
+L'endpoint non deve essere usato dalla servlet finché dataset e HTTPS non
+vengono riconciliati con una nuova autorizzazione.
 
 ## Esito verifica Altervista del 4 agosto 2026
 
@@ -47,12 +50,48 @@ dataset remoto e HTTPS non vengono riconciliati con una nuova autorizzazione.
   Apache pubblico contiene solo routing e non sono rimasti diagnostici o
   segreti raggiungibili via URL.
 - HTTPS continua a fallire con `ERR_CERT_AUTHORITY_INVALID`; non è stato usato
-  alcun bypass TLS e nel pannello non è stata individuata un'opzione di
-  attivazione certificato.
+  alcun bypass TLS. Il pannello espone l'attivazione, ma la pagina dichiara
+  HTTPS disattivato e richiede prima l'identificazione telefonica dell'utente.
 - Superati sei test PHP, lint di 23 file, runner rigoroso Java/PHP/Django e
   build di packaging in copia temporanea con 119 payload. `dist` e il branch
   `consegna` non sono stati rigenerati o modificati.
 - Rapporto completo: `docs/VERIFICA_ALTERVISTA.md`.
+
+## Esito T13.1 - preflight bonifica Altervista
+
+- Prima di qualunque possibile modifica è stato scaricato un export SQL gzip
+  delle sole tabelle `ricovero`, `patologia_ricovero` e
+  `progressivo_ricovero`. Il backup, conservato fuori dal repository, misura
+  338.342 byte, è apribile e ha SHA-256
+  `c6228ba14a60264626635efcd478ce5eb409ca064fbaac5cf25ed52af4876ad9`.
+- Gli hash ricalcolati di `schema.sql` e `seed_massivo.sql` coincidono con T07.
+  Il server usa InnoDB, non ha trigger sulle tre tabelle e conserva PK/FK
+  conformi allo schema.
+- Tutte le 12.000 PK `ricovero` e le 20.492 PK `patologia_ricovero` attese
+  sono presenti. Le sole PK additive sono `OSP-011/442` e la relativa
+  `OSP-011/442/PAT-049`; l'associazione è collegata esattamente al parent.
+- Il confronto completo, senza registrare valori personali, ha però trovato
+  anche `ricovero` `OSP-007/161` divergente nella sola colonna
+  `paziente_cssn` e `prossimo_cod` con delta `+1` per `OSP-011`, `OSP-021` e
+  `OSP-024`.
+- Eliminando offline soltanto la coppia extra, il digest di
+  `patologia_ricovero` torna conforme, ma quello di `ricovero` resta
+  `cabd23298f00f6623c91e3a3abc08fc2e1a33fa7b42f87e27e395ee15a1e393b`
+  e i progressivi restano discordanti. Il `datasetId` ipotetico sarebbe
+  `31846d6dd14eb3ecb8a4b8ed4caf9d6c447fc38dc9a94ac042ed418c14362a66`,
+  non quello T07.
+- Poiché l'autorizzazione consentiva soltanto due cancellazioni, una bonifica
+  parziale non avrebbe soddisfatto l'obiettivo. Non è stata eseguita alcuna
+  query DML: conteggi, digest e `datasetId` remoti sono rimasti invariati.
+- Verifica finale invariata: health HTTP 200 `status=ok`, manifest anonimo
+  HTTP 401, manifest autenticato HTTP 200 con otto entità. Il `datasetId`
+  osservato resta
+  `abf6a61af736c0bb5d721dbc199f33aa39b48d7656f9ca4221cbb91619904cd8`.
+- La funzione HTTPS esiste, ma richiede identificazione telefonica; il
+  protocollo risulta disattivato e il test continua a fallire con
+  `ERR_CERT_AUTHORITY_INVALID`. Nessun bypass o cambio account è stato fatto.
+- Il diagnostico temporaneo è stato rimosso; vecchio sito, Progetto 1,
+  `dist`, database e `origin/consegna` sono rimasti invariati.
 
 ## Esito T12
 
@@ -499,9 +538,11 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T13. Una nuova autorizzazione esplicita è
-necessaria per identificare e gestire le due righe eccedenti nel database
-Altervista e per qualunque intervento sul certificato HTTPS. `AUTORIZZATA` è
-`Nessuna`; l'email resta una bozza e non deve essere inviata automaticamente.
-Non lanciare la migrazione massiva, non modificare il Progetto 1, non unire o
-modificare `consegna` e non creare tag o release.
+Attendere la revisione Work di T13 e T13.1. `AUTORIZZATA` è `Nessuna`;
+T13.2 resta nel backlog e richiede una nuova autorizzazione esplicita per
+ripristinare dal seed la riga comune divergente, correggere i tre progressivi
+e rimuovere la coppia extra in transazione. L'attivazione HTTPS richiede una
+scelta e l'identificazione telefonica dell'utente nel pannello. L'email resta
+una bozza e non deve essere inviata automaticamente. Non lanciare la
+migrazione massiva, non modificare il Progetto 1, non unire o modificare
+`consegna` e non creare tag o release.

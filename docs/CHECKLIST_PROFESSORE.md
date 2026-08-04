@@ -11,8 +11,9 @@ inviata.
 - [ ] Il componente remoto PHP è stato caricato e il fallback server-only è
       operativo: health risponde HTTP 200, il manifest anonimo HTTP 401 e il
       manifest autenticato HTTP 200 con otto entità. La casella resta aperta
-      perché due conteggi remoti eccedono di una riga e HTTPS non supera la
-      validazione del certificato; vedere `docs/VERIFICA_ALTERVISTA.md`.
+      perché due conteggi remoti eccedono di una riga, una riga comune e tre
+      progressivi divergono dal seed e HTTPS non supera la validazione del
+      certificato; vedere `docs/VERIFICA_ALTERVISTA.md`.
 - [x] Il servizio locale è Python/Django.
 - [x] Lo strato intermedio è una servlet Java.
 - [x] Il percorso reale dei dati è PHP → servlet → Django → PostgreSQL.

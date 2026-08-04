@@ -6,9 +6,39 @@ Nessuna.
 
 ## BACKLOG
 
-Nessuna.
+- [ ] **T13.2 - Riconciliazione completa del dataset Altervista**
+  - autorizzazione esplicita ancora necessaria: T13.1 ha provato che la sola
+    cancellazione delle due righe eccedenti non rende i digest conformi a T07;
+  - definire e approvare una correzione transazionale che ripristini dal seed
+    ufficiale la riga comune divergente, riconcili i tre progressivi e rimuova
+    in ordine figlio-padre la coppia tecnica extra;
+  - rieseguire confronto byte canonico, manifest, vincoli e controlli HTTP
+    soltanto dopo una nuova autorizzazione.
 
 ## IN REVISIONE
+
+- [ ] **T13.1 - Bonifica minima del database Altervista**
+  - creato prima di qualsiasi possibile DML un export SQL gzip verificato,
+    conservato fuori dal repository e limitato alle tre tabelle coinvolte;
+  - riconfermati gli hash delle fonti ufficiali e confrontati set di PK e
+    contenuti senza registrare dati personali;
+  - identificate con certezza la PK extra `OSP-011/442` di `ricovero` e la PK
+    figlia `OSP-011/442/PAT-049`, entrambe assenti dal seed e collegate tra
+    loro; nessuna PK attesa risulta mancante;
+  - rilevate però anche la PK comune `OSP-007/161` con la sola colonna
+    `paziente_cssn` divergente e tre valori `prossimo_cod` con delta `+1` per
+    `OSP-011`, `OSP-021` e `OSP-024`;
+  - la rimozione autorizzata delle sole due righe extra lascerebbe quindi
+    `ricovero`, `progressivo_ricovero` e il `datasetId` non conformi a T07: per
+    evitare una bonifica parziale irreversibile non è stata eseguita alcuna
+    query di scrittura;
+  - riconfermati HTTP 200 su health, HTTP 401 sul manifest anonimo e HTTP 200
+    sul manifest autenticato; conteggi e digest remoti sono rimasti invariati;
+  - verificata nel pannello la voce HTTPS: il protocollo è disattivato e
+    l'attivazione richiede identificazione telefonica dell'utente; il test TLS
+    continua a restituire `ERR_CERT_AUTHORITY_INVALID`, senza bypass;
+  - diagnostici pubblici rimossi; vecchio sito, Progetto 1, `dist`, database e
+    branch `consegna` sono rimasti invariati.
 
 - [ ] **T13 - Completamento pubblicazione Altervista**
   - implementato e pubblicato il caricatore PHP a whitelist con precedenza

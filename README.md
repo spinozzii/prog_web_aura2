@@ -37,10 +37,14 @@ Il 4 agosto 2026 il componente PHP aggiornato è stato collaudato su Altervista.
 Il fallback server-only risolve il limite dell'account, che non propaga
 `SetEnv`: `/health` risponde HTTP 200, il manifest anonimo HTTP 401 e quello
 autenticato HTTP 200 con otto entità. Il database remoto contiene però una
-riga eccedente sia in `ricovero` sia in `patologia_ricovero`; inoltre HTTPS
-fallisce la validazione del certificato. Non usare ancora l'endpoint come
-sorgente della servlet e non modificare il database senza una nuova
-autorizzazione. L'evidenza completa è in `docs/VERIFICA_ALTERVISTA.md`.
+riga eccedente sia in `ricovero` sia in `patologia_ricovero`. Il preflight
+T13.1 ha inoltre rilevato una riga `ricovero` comune ma divergente e tre
+progressivi diversi dal seed: cancellare soltanto le due righe extra non
+renderebbe conformi i digest. Nessun DML è stato eseguito. HTTPS fallisce la
+validazione del certificato e l'attivazione dal pannello richiede
+identificazione telefonica. Non usare ancora l'endpoint come sorgente della
+servlet e non modificare il database senza una nuova autorizzazione.
+L'evidenza completa è in `docs/VERIFICA_ALTERVISTA.md`.
 
 Ogni valore d'ambiente ha precedenza e, soltanto per le chiavi assenti, il
 servizio legge `remote-php/config/local.php`. Il repository contiene
@@ -85,8 +89,8 @@ richiede una nuova autorizzazione.
 - `docs/VERIFICA_T09.md`: pacchetto offline, prova pulita, PDF e casi avversi;
 - `docs/VERIFICA_T11.md`: audit conclusivo, prove finali e limiti;
 - `docs/VERIFICA_T11_1.md`: attese finite e verdetto di consegnabilità;
-- `docs/VERIFICA_ALTERVISTA.md`: fallback remoto, collaudo HTTP, conteggi e
-  limite HTTPS osservati;
+- `docs/VERIFICA_ALTERVISTA.md`: fallback remoto, collaudo HTTP, preflight
+  forense del database, digest e limite HTTPS osservati;
 - `docs/BOZZA_EMAIL_CONSEGNA.md`: bozza non inviata e controlli pre-invio;
 - `docs/RISCHI.md`: rischi e contromisure.
 
