@@ -11,9 +11,9 @@ Work. Il verdetto T11.1 `CONSEGNABILE` resta riferito al pacchetto e alle prove
 locali; T13 ha reso operativo il servizio PHP su Altervista, ma ha rilevato
 due conteggi remoti non conformi e un certificato HTTPS non valido.
 
-T12 ha pubblicato su GitHub il branch orfano `consegna` ed è in revisione
-Work. Il branch contiene esclusivamente i due allegati indicati nella bozza
-email; `main` è rimasto il repository tecnico completo.
+T12 ha pubblicato su GitHub il branch orfano `consegna`. T14 ha rigenerato il
+candidato di consegna, che contiene esclusivamente i due allegati indicati
+nella bozza email; `main` resta il repository tecnico completo.
 
 T13, T13.1 e T13.2 sono in revisione Work e `AUTORIZZATA` è `Nessuna`. Il fallback
 server-only ha risolto il blocco `SetEnv`; health, autenticazione e manifest
@@ -22,6 +22,26 @@ eccedenti non renderebbe il dataset conforme: esistono anche una riga comune
 divergente e tre progressivi diversi dal seed. Nessun DML è stato eseguito.
 L'endpoint non deve essere usato dalla servlet finché dataset e HTTPS non
 vengono riconciliati con una nuova autorizzazione.
+
+## Esito T14 - bonifica candidato di consegna
+
+- eliminate dal pacchetto le istruzioni obsolete `SetEnv` nel file pubblico
+  `.htaccess`; `delivery/ALTERVISTA.md` e il manuale prescrivono ora soltanto
+  `remote-php/config/local.php` server-only, fuori da `public`, protetto e non
+  tracciato;
+- la prova standard è dichiarata offline e locale. Altervista è opzionale e
+  non può essere usato dalla servlet finale finché dataset/digest T07 e
+  certificato HTTPS valido non sono entrambi disponibili;
+- il riferimento storico al manifest `503` in T11.1 è distinto dallo stato
+  T13 aggiornato: health 200, manifest anonimo 401 e autenticato 200, con
+  endpoint comunque escluso per database divergente e TLS non valido;
+- nuovo candidato `dist/drive-aura-51-offline.zip`: 12.861.964 byte,
+  SHA-256 `c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`,
+  sidecar coerente, 120 entry/118 payload, 2 WAR, 7 wheel e 2 PDF;
+- `Test-PackageIntegrity.ps1` è passato da una nuova estrazione in percorso
+  corto; le quattro pagine PDF A4 sono state renderizzate e controllate, senza
+  tagli, sovrapposizioni, caratteri corrotti, margini irregolari o pagine
+  superflue. Il branch `consegna` deve essere aggiornato con i soli due file.
 
 ## Esito T13.2 - valutazione ripristino completo Altervista
 

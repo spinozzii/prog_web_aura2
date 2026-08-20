@@ -247,9 +247,9 @@ rollback/ripresa, timeout PDO reale, `mvn clean test/package`, 31 casi
 installer e 6 test del mock remoto. Le prove pulite finali sono terminate in
 42,732 secondi wall-clock con Tomcat 11 e 43,334 secondi con Tomcat 9.
 
-Il candidato riproducibile contiene 117 entry/115 payload, misura 12.855.976
-byte e ha SHA-256
-`1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
+Il candidato riproducibile aggiornato T14 contiene 120 entry/118 payload,
+misura 12.861.964 byte e ha SHA-256
+`c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`.
 Tutti i payload coincidono con le sorgenti; i quattro render PDF sono stati
 ispezionati. Il dettaglio e il verdetto `CONSEGNABILE` sono in
 `docs/VERIFICA_T11_1.md`.

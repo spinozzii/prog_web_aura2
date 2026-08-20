@@ -22,11 +22,15 @@ Allegati:
 - drive-aura-51-offline.zip.sha256
 
 SHA-256 dello ZIP:
-1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c
+c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732
 
 Il pacchetto contiene il manuale PDF, il documento PDF delle scelte, i
 sorgenti, i WAR Tomcat 9 e 11, la wheelhouse offline, il dump sorgente e gli
 strumenti di installazione e verifica.
+
+La verifica standard della consegna è offline e locale; non richiede
+l'endpoint Altervista attuale, che resta escluso dalla servlet finale finché
+dataset e HTTPS non sono conformi.
 
 Cordiali saluti,
 

@@ -93,6 +93,9 @@ inviata.
 
 ## Materiale di consegna
 
+- [x] La consegna principale e la verifica standard sono il pacchetto offline;
+      Altervista è un'integrazione opzionale e non è configurato nella servlet
+      finale finché dataset T07 e certificato HTTPS non risultano conformi.
 - [x] È incluso un dump verificabile del database di origine.
 - [x] Sono inclusi codice, configurazioni di esempio e artefatti.
 - [x] Cache, log, ambienti virtuali, credenziali e file IDE sono esclusi.

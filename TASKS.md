@@ -10,6 +10,22 @@ Nessuna.
 
 ## IN REVISIONE
 
+- [ ] **T14 - Bonifica del materiale consegnabile dopo review finale**
+  - rimosso dal candidato il template `SetEnv` che suggeriva segreti in un
+    `.htaccess`; `ALTERVISTA.md` ora impone `remote-php/config/local.php`
+    server-only, fuori da `public`, ignorato da Git e protetto;
+  - manuale, PDF, README, checklist e bozza email dichiarano il pacchetto
+    offline come consegna/verifica standard; l'Altervista attuale è opzionale
+    ed escluso dalla servlet per dataset T07 divergente e TLS non valido;
+  - `docs/VERIFICA_T11_1.md` distingue l'esito storico `503` dal successivo
+    stato T13: health 200, manifest anonimo 401 e autenticato 200, senza
+    certificare il remoto come sorgente finale;
+  - rigenerato `dist/drive-aura-51-offline.zip`: 12.861.964 byte, SHA-256
+    `c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`,
+    120 entry/118 payload, 2 WAR, 7 wheel e 2 PDF; integrità da estrazione
+    corta superata e PDF A4 3+1 pagine controllati visivamente;
+  - in attesa di pubblicazione e verifica del branch `consegna` aggiornato.
+
 - [ ] **T13.2 - Valutazione rapida del ripristino completo Altervista**
   - nuova autorizzazione applicata senza avviare la migrazione Django/PostgreSQL;
   - phpMyAdmin espone il solo database applicativo `my_motorizzami`, con le

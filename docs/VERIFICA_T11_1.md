@@ -12,10 +12,11 @@ stati verificati con scadenze esterne finite. L'unico requisito non osservato
 nel suo ambiente definitivo è la pubblicazione PHP su Altervista, esclusa
 dall'autorizzazione; il componente e le istruzioni restano predisposti.
 
-Aggiornamento del 4 agosto 2026: la prova Altervista successivamente
-autorizzata ha rilevato il blocco `SetEnv` documentato in
-`docs/VERIFICA_ALTERVISTA.md`. Il verdetto sopra resta quindi limitato al
-pacchetto e alle prove locali e non certifica il servizio remoto operativo.
+Aggiornamento successivo T13 del 4 agosto 2026: il blocco storico `SetEnv` è
+stato risolto con configurazione server-only. Il verdetto sopra resta limitato
+al pacchetto e alle prove locali: non certifica l'endpoint remoto come sorgente
+finale della servlet, perché dataset e TLS non sono conformi. Lo stato corrente
+è registrato in `docs/VERIFICA_ALTERVISTA.md`.
 
 ## Correzioni dell'audit Work
 
@@ -137,6 +138,13 @@ otto porte sono assenti dopo il cleanup.
 
 ## Pacchetto e artefatti
 
+I valori di questa sezione sono lo snapshot storico T11.1. Il candidato
+aggiornato T14, rigenerato per correggere le sole istruzioni di consegna, è
+`dist/drive-aura-51-offline.zip`: 12.861.964 byte, SHA-256
+`c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`, 120
+entry/118 payload. Il suo manuale dichiara la verifica offline come standard e
+non indica l'Altervista attuale quale sorgente finale della servlet.
+
 Due build consecutive hanno prodotto byte identici.
 
 ```text
@@ -209,8 +217,9 @@ PK, FK, unicità, domini e progressivi. Il Progetto 1 è pulito e invariato.
 ### Problemi residui
 
 Nessun problema tecnico bloccante era noto nei percorsi verificati localmente.
-La successiva prova Altervista del 4 agosto 2026 ha individuato un limite
-dell'ambiente definitivo: le direttive `SetEnv` vengono conservate ma non
-raggiungono PHP, quindi health passa e il manifest risponde 503 prima
-dell'autenticazione. L'evidenza e il fallback proposto sono in
+Il riferimento a `503` descriveva il solo tentativo storico prima di T13. Lo
+stato successivo osservato è: health HTTP 200, manifest anonimo HTTP 401 e
+manifest autenticato HTTP 200 con otto entità, grazie al fallback server-only.
+L'endpoint rimane però escluso dalla servlet finale: il database diverge dal
+dataset T07 e HTTPS non ha un certificato valido. L'evidenza aggiornata è in
 `docs/VERIFICA_ALTERVISTA.md`. Email, tag e release non sono stati eseguiti.

@@ -28,9 +28,9 @@ T07 ha verificato la verticale completa sul dataset massivo di 36.176 righe.
 T09 ha prodotto il pacchetto offline. T11.1 ha chiuso i rischi di attese
 indefinite e ha riconfermato la consegnabilità: le prove finali da ZIP pulito
 sono terminate in 42,732 secondi con Tomcat 11 e 43,334 secondi con Tomcat 9,
-senza download. Il candidato riproducibile misura 12.855.976 byte e ha
+senza download. Il candidato riproducibile aggiornato T14 misura 12.861.964 byte e ha
 SHA-256
-`1019d2cc3f08d5c07e81b129bf786355b5ccd5471dba7d0ad0fa1fbcd6d5442c`.
+`c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`.
 Lo stato vincolante resta sempre in `TASKS.md`.
 
 Il 4 agosto 2026 il componente PHP aggiornato è stato collaudato su Altervista.
@@ -45,6 +45,10 @@ validazione del certificato e l'attivazione dal pannello richiede
 identificazione telefonica. Non usare ancora l'endpoint come sorgente della
 servlet e non modificare il database senza una nuova autorizzazione.
 L'evidenza completa è in `docs/VERIFICA_ALTERVISTA.md`.
+
+La consegna principale resta il pacchetto offline pubblicato su `consegna`.
+L'endpoint Altervista è opzionale e non è configurato nella servlet finale
+finché dataset T07 e HTTPS valido non risultano entrambi disponibili.
 
 Ogni valore d'ambiente ha precedenza e, soltanto per le chiavi assenti, il
 servizio legge `remote-php/config/local.php`. Il repository contiene

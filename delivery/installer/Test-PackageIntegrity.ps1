@@ -463,9 +463,6 @@ Assert-RequiredFile `
     -RelativePath 'config/secrets.example.ps1'
 Assert-RequiredFile `
     -ActualFiles $actualFileMap `
-    -RelativePath 'config/altervista-setenv.example.htaccess'
-Assert-RequiredFile `
-    -ActualFiles $actualFileMap `
     -RelativePath 'database/drive-aura-51-source-v2.zip'
 Assert-RequiredFile `
     -ActualFiles $actualFileMap `

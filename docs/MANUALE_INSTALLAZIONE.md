@@ -146,47 +146,27 @@ Il configuratore controlla:
 - migrazione delle otto entità, digest, vincoli e idempotenza;
 - arresto dei processi avviati dal controllo.
 
-La verifica rapida usa dati sintetici leggibili. La migrazione massiva usa il
-servizio PHP reale e 36.176 righe; è separata perché richiede il database
-remoto configurato.
+La verifica rapida usa dati sintetici leggibili. La migrazione massiva
+PHP/PDO di 36.176 righe è un collaudo storico T07 separato: non fa parte della
+verifica standard di consegna e richiede una sorgente remota conforme.
 
-## 6. Avviare con il servizio PHP reale
+## 6. Servizio PHP remoto: opzione non necessaria alla consegna
 
-Preparare prima il componente remoto seguendo `ALTERVISTA.md`. Impostare nella
-stessa sessione i cinque segreti della sezione 3; il valore di
-`REMOTE_API_SECRET` deve coincidere con il segreto configurato nel servizio
-PHP remoto.
+La consegna e la verifica standard sono **offline e locali**: completare le
+sezioni 1-5. Non è richiesto un account Altervista né una migrazione reale per
+valutare il pacchetto.
 
-Il PHP remoto usa per default 3 s per connettersi via PDO (intervallo 1-30) e
-8 s per ogni query (1-120). Sono limiti distinti dal timeout PHP/web server;
-configurare `REMOTE_DB_CONNECT_TIMEOUT_SECONDS` e
-`REMOTE_DB_QUERY_TIMEOUT_SECONDS` nella `.htaccess` privata.
+L'endpoint Altervista documentato in `ALTERVISTA.md` è predisposto ma, nello
+stato attuale, è escluso dalla servlet finale: il dataset remoto non coincide
+con T07 e il certificato HTTPS non è valido. Non configurarlo, non aggirare la
+verifica TLS e non avviare `verify-mass-migration.ps1` contro quell'URL.
 
-```powershell
-.\installer\Start-DriveAura.ps1 `
-  -StatePath '..\drive-aura-51-runtime\install-state.json' `
-  -RemoteApiUrl 'https://ACCOUNT.altervista.org/drive-aura-api/remote-php/public'
-```
-
-Controllare:
-
-```powershell
-Invoke-RestMethod 'http://127.0.0.1:8000/health'
-Invoke-RestMethod 'http://127.0.0.1:8080/health'
-```
-
-Il database indicato da `-PostgresDatabase` è già dedicato e vuoto. Non usare
-il database indicato da `-VerificationDatabase`. Avviare la migrazione reale:
-
-```powershell
-.\tools\verify-mass-migration.ps1 `
-  -RemoteBaseUrl 'https://ACCOUNT.altervista.org/drive-aura-api/remote-php/public' `
-  -LocalBaseUrl 'http://127.0.0.1:8000' `
-  -BridgeBaseUrl 'http://127.0.0.1:8080' -Repeat
-```
-
-Il risultato massivo atteso è `completed`, 36.176 righe e 364 lotti. La durata
-della migrazione massiva non fa parte del controllo rapido di installazione.
+Un futuro endpoint PHP può essere usato soltanto dopo avere verificato insieme
+dataset e digest T07, HTTPS con certificato valido e configurazione privata
+server-only. Per la pubblicazione seguire `ALTERVISTA.md`: i segreti reali
+stanno in `remote-php/config/local.php`, fuori da `public`, mai nel pacchetto
+né in `.htaccess`. La migrazione massiva attesa resta `completed`, 36.176
+righe e 364 lotti, ma la sua durata non fa parte del controllo rapido.
 
 ## 7. Arrestare
 

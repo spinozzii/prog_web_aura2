@@ -88,15 +88,19 @@ va verificato prima di inserire valori reali. `GET /health` resta indipendente
 dalla configurazione e dal database. Dettagli ed evidenze osservate sul server
 sono in `docs/VERIFICA_ALTERVISTA.md`.
 
-Questa correzione di pubblicazione è successiva al candidato offline già
-fissato: non rigenerare `dist/drive-aura-51-offline.zip` né modificare il
-branch di consegna per applicarla al server. Il pacchetto conserva i propri
-hash storici; il file `local.php` reale non deve comunque comparire in alcun
-archivio.
+Il pacchetto offline include queste istruzioni corrette, ma **non** include il
+file `local.php` reale né usa questo endpoint come sorgente della verifica
+finale. L'endpoint Altervista attuale è opzionale e resta escluso dalla
+servlet finché dataset/digest non coincidono con T07 e HTTPS non espone un
+certificato valido. Non inserire mai il file reale, segreti o diagnostici in
+un archivio, nel repository o sotto `public`.
 
-## Controllo senza esporre segreti
+## Controllo senza esporre segreti, solo per un endpoint futuro conforme
 
-Sostituire `ACCOUNT` nell'URL:
+Questo controllo non va eseguito contro l'endpoint Altervista attuale: è
+escluso dalla servlet finale per database divergente e TLS non valido. Dopo la
+riconciliazione del dataset e un certificato HTTPS valido, sostituire `ACCOUNT`
+nell'URL:
 
 ```powershell
 $remote = 'https://ACCOUNT.altervista.org/drive-aura-api/remote-php/public'
@@ -109,6 +113,6 @@ Il primo comando deve restituire `service=remote-php` e `status=ok`. Il
 manifest deve dichiarare otto entità, conteggi e digest. Un Bearer assente o
 errato deve ricevere HTTP 401.
 
-Usare soltanto HTTPS nell'URL configurato per la servlet. Non stampare
-manifest completi nei log di produzione e non eseguire CRUD sul Progetto 1
-durante la migrazione.
+Usare soltanto HTTPS con certificato valido nell'URL configurato per la
+servlet. Non stampare manifest completi nei log di produzione e non eseguire
+CRUD sul Progetto 1 durante la migrazione.
