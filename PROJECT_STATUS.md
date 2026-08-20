@@ -7,21 +7,56 @@ intermedia e servizio Django locale verso PostgreSQL.
 
 T00, T01, T01.1, T01.2, T02.1, T02.2, T03, T07, T09 e T09.1 sono
 completate. T11 e T11.1 hanno concluso gli audit tecnici e sono in revisione
-Work. Il verdetto T11.1 `CONSEGNABILE` resta riferito al pacchetto e alle prove
-locali; T13 ha reso operativo il servizio PHP su Altervista, ma ha rilevato
-due conteggi remoti non conformi e un certificato HTTPS non valido.
+Work. Il verdetto T11.1 `CONSEGNABILE` resta valido; T15 ha inoltre reso il
+servizio PHP Altervista una sorgente reale conforme, con HTTPS valido, dataset
+T07 coincidente e verticale massiva osservata fino a PostgreSQL.
 
 T12 ha pubblicato su GitHub il branch orfano `consegna`. T14 ha rigenerato il
 candidato di consegna, che contiene esclusivamente i due allegati indicati
 nella bozza email; `main` resta il repository tecnico completo.
 
-T13, T13.1 e T13.2 sono in revisione Work e `AUTORIZZATA` è `Nessuna`. Il fallback
-server-only ha risolto il blocco `SetEnv`; health, autenticazione e manifest
-sono raggiungibili. T13.1 ha provato che la sola rimozione delle due righe
-eccedenti non renderebbe il dataset conforme: esistono anche una riga comune
-divergente e tre progressivi diversi dal seed. Nessun DML è stato eseguito.
-L'endpoint non deve essere usato dalla servlet finché dataset e HTTPS non
-vengono riconciliati con una nuova autorizzazione.
+T13, T13.1, T13.2, T14 e T15 sono in revisione Work e `AUTORIZZATA` è
+`Nessuna`. Le anomalie storiche T13 sono state risolte in T15 soltanto dopo un
+backup completo verificato: le otto tabelle sono state riallineate alle fonti
+ufficiali e il certificato HTTPS è stato validato. La verifica standard resta
+il pacchetto offline; Altervista è ora una sorgente reale opzionale.
+
+## Esito T15 - riallineamento e collaudo finale Altervista
+
+- URL finale:
+  `https://motorizzami.altervista.org/drive-aura-api/remote-php/public`;
+  `/health` e `/health/` rispondono 200 diretto senza redirect, il manifest
+  anonimo 401 e quello autenticato 200;
+- l'identificazione richiesta dal provider è stata completata manualmente
+  dall'utente. Il certificato è valido e nessun bypass TLS è stato introdotto;
+- backup completo delle otto tabelle conservato fuori dal repository,
+  ripristinato in MariaDB isolato e verificato: 2.495.836 byte, SHA-256
+  `fd8ef3b3153ca742ccd765b039e0b76046171fd32f73236c4b075d5acec7d8a3`;
+- ricostruite soltanto le otto tabelle sanitarie da schema e seed ufficiali;
+  conteggi finali `3200/200/143/81/30/12000/20492/30`, otto digest T07 e
+  dataset ID
+  `75f461f906b5a6a4ed1252218ea2db664d8f929ba68403760474ff2f4d199e39`;
+- verticale reale Altervista -> PHP/PDO -> Tomcat 11 -> Django -> PostgreSQL:
+  36.176 righe, 364 lotti, stato `completed`, 117,637 s applicativi e 122,139
+  s wall-clock. Rilancio idempotente 2,748 s; audit SQL e Django senza
+  anomalie su PK, FK, unicità, domini e progressivi;
+- WAR Tomcat 9 riconfermato sul medesimo stato in 3,089 s e rilanciato
+  idempotentemente in 3,002 s;
+- il routing Apache elimina il downgrade della forma `/health` senza slash;
+  una regressione automatica lo protegge. La race di cleanup osservata con un
+  processo Django già terminato è stata corretta senza allentare i controlli
+  di identità; suite installer 32/32 superata;
+- runner completo, 24 lint e 7 test PHP, 29 test Django, check/migrazioni,
+  tre test Maven e `mvn clean package` sono passati; entrambi i WAR sono stati
+  prodotti;
+- manuale e scelte progettuali restano PDF A4 di 3+1 pagine, renderizzati e
+  controllati visivamente. Il candidato T15 misura 12.862.977 byte, ha
+  SHA-256 `4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7`
+  e contiene 121 entry/119 payload, 2 WAR, 7 wheel e 2 PDF; integrità ed
+  estrazione in percorso corto sono state verificate;
+- nessun segreto reale, dump di backup, payload personale, runtime temporaneo,
+  cache, log o `target` è incluso. Progetto 1 e vecchio sito non sono stati
+  modificati.
 
 ## Esito T14 - bonifica candidato di consegna
 
@@ -583,11 +618,8 @@ T07 è approvata senza correzioni bloccanti.
 
 ## Prossimo passo
 
-Attendere la revisione Work di T13, T13.1 e T13.2. `AUTORIZZATA` è `Nessuna`;
-un eventuale ripristino remoto richiede anzitutto un export completo
-verificabile fuori dal repository, quindi nuova autorizzazione per importare
-il seed ufficiale e ripetere manifest/digest. L'attivazione HTTPS richiede una
-scelta e l'identificazione telefonica dell'utente nel pannello. L'email resta
-una bozza e non deve essere inviata automaticamente. Non lanciare la
-migrazione massiva, non modificare il Progetto 1, non unire o modificare
-`consegna` e non creare tag o release.
+Attendere la revisione Work di T13, T13.1, T13.2, T14 e T15. `AUTORIZZATA` è
+`Nessuna`. La consegna standard resta il pacchetto offline; Altervista è una
+sorgente reale opzionale già validata. L'email resta una bozza e non deve
+essere inviata automaticamente. Non modificare il Progetto 1 e non creare
+tag, release o pull request.

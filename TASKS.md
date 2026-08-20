@@ -10,6 +10,36 @@ Nessuna.
 
 ## IN REVISIONE
 
+- [ ] **T15 - Riallineamento e collaudo finale Altervista**
+  - HTTPS attivato dopo l'identificazione completata manualmente dall'utente;
+    certificato valido, `/health` e `/health/` HTTPS 200 diretti, manifest
+    anonimo 401 e manifest autenticato 200;
+  - conservato fuori dal repository un backup completo verificato delle otto
+    tabelle: 2.495.836 byte, SHA-256
+    `fd8ef3b3153ca742ccd765b039e0b76046171fd32f73236c4b075d5acec7d8a3`,
+    ripristinato con successo in un MariaDB isolato;
+  - ricostruite soltanto le otto tabelle sanitarie da schema e seed ufficiali;
+    il manifest finale espone 36.176 righe, gli otto digest e il `datasetId`
+    T07 `75f461f906b5a6a4ed1252218ea2db664d8f929ba68403760474ff2f4d199e39`;
+  - osservata la verticale reale Altervista/PHP/PDO -> Tomcat 11 -> Django ->
+    PostgreSQL in 117,637 s applicativi/122,139 s wall-clock, 364 lotti e stato
+    `completed`; audit PK/FK/unicità/domini/progressivi superato e rilancio
+    idempotente in 2,748 s;
+  - riconfermato il WAR Tomcat 9 sullo stesso `migrationId` in 3,089 s, con
+    secondo rilancio idempotente in 3,002 s;
+  - corretto il routing Apache senza downgrade HTTPS e aggiunta regressione;
+    corretta anche la race di cleanup di un processo già terminato, con suite
+    installer 32/32 superata;
+  - superati runner Java/PHP/Django, 24 lint e 7 test PHP, 29 test Django,
+    controlli Django, tre test Maven e `mvn clean package` con entrambi i WAR;
+  - rigenerati e controllati visivamente i PDF A4 3+1 pagine; nuovo candidato
+    da 12.862.977 byte, SHA-256
+    `4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7`,
+    121 entry/119 payload, 2 WAR, 7 wheel e 2 PDF, verificato da estrazione
+    corta;
+  - documentazione aggiornata; nessun segreto, payload personale o runtime
+    temporaneo incluso. In attesa della revisione Work.
+
 - [ ] **T14 - Bonifica del materiale consegnabile dopo review finale**
   - rimosso dal candidato il template `SetEnv` che suggeriva segreti in un
     `.htaccess`; `ALTERVISTA.md` ora impone `remote-php/config/local.php`

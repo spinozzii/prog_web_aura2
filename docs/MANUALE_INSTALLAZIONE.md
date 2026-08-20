@@ -3,7 +3,7 @@
 ## Manuale di installazione e verifica offline
 
 Secondo progetto di Programmazione Web - scelta B - Versione candidata:
-31 luglio 2026
+20 agosto 2026
 
 Questo pacchetto migra i dati del Servizio Sanitario dal servizio PHP remoto a
 PostgreSQL locale. Il percorso applicativo è:
@@ -150,23 +150,23 @@ La verifica rapida usa dati sintetici leggibili. La migrazione massiva
 PHP/PDO di 36.176 righe è un collaudo storico T07 separato: non fa parte della
 verifica standard di consegna e richiede una sorgente remota conforme.
 
-## 6. Servizio PHP remoto: opzione non necessaria alla consegna
+## 6. Servizio PHP remoto: sorgente reale opzionale
 
 La consegna e la verifica standard sono **offline e locali**: completare le
 sezioni 1-5. Non è richiesto un account Altervista né una migrazione reale per
 valutare il pacchetto.
 
-L'endpoint Altervista documentato in `ALTERVISTA.md` è predisposto ma, nello
-stato attuale, è escluso dalla servlet finale: il dataset remoto non coincide
-con T07 e il certificato HTTPS non è valido. Non configurarlo, non aggirare la
-verifica TLS e non avviare `verify-mass-migration.ps1` contro quell'URL.
+L'endpoint Altervista documentato in `ALTERVISTA.md` è disponibile come
+sorgente reale opzionale. Il certificato HTTPS è valido; il manifest espone il
+dataset T07 da 36.176 righe con conteggi, digest e `datasetId` coincidenti. Una
+migrazione osservata attraverso Tomcat, Django e PostgreSQL ha completato 364
+lotti ed è risultata idempotente; sono stati verificati entrambi i WAR.
 
-Un futuro endpoint PHP può essere usato soltanto dopo avere verificato insieme
-dataset e digest T07, HTTPS con certificato valido e configurazione privata
-server-only. Per la pubblicazione seguire `ALTERVISTA.md`: i segreti reali
-stanno in `remote-php/config/local.php`, fuori da `public`, mai nel pacchetto
-né in `.htaccess`. La migrazione massiva attesa resta `completed`, 36.176
-righe e 364 lotti, ma la sua durata non fa parte del controllo rapido.
+Usare il remoto soltanto con rete disponibile e con il Bearer ricevuto fuori
+dal pacchetto. Non disabilitare TLS e non registrare il token. Sul server i
+segreti stanno in `remote-php/config/local.php`, fuori da `public`, mai nel
+pacchetto né in `.htaccess`. La durata della migrazione massiva non fa parte
+del controllo rapido offline delle sezioni 1-5.
 
 ## 7. Arrestare
 

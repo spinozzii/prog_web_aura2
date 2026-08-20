@@ -45,5 +45,7 @@ La prova sintetica trasferisce 22 righe mediante una sorgente contrattuale
 loopback, servlet reale, Django reale e PostgreSQL reale. Non sostituisce la
 migrazione massiva da PHP/PDO, già collaudata separatamente.
 
-Per il servizio PHP remoto leggere `ALTERVISTA.md`. Le istruzioni non
-effettuano alcuna pubblicazione automatica.
+Per il servizio PHP remoto leggere `ALTERVISTA.md`. La verifica standard resta
+offline; il servizio Altervista conforme è una sorgente reale opzionale e il
+relativo token non è incluso. Le istruzioni non effettuano alcuna
+pubblicazione automatica.

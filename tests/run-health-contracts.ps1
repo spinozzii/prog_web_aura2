@@ -116,6 +116,7 @@ Invoke-OrSkip 'PHP isolated and HTTP contracts' {
     $php = Get-Command php -ErrorAction Stop
     foreach ($testName in @(
             'HealthResponseTest.php',
+            'ApacheHealthRoutingTest.php',
             'PatologiaCanonicalizerTest.php',
             'PatologiaApiTest.php',
             'PdoTimeoutPolicyTest.php',

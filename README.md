@@ -28,27 +28,24 @@ T07 ha verificato la verticale completa sul dataset massivo di 36.176 righe.
 T09 ha prodotto il pacchetto offline. T11.1 ha chiuso i rischi di attese
 indefinite e ha riconfermato la consegnabilità: le prove finali da ZIP pulito
 sono terminate in 42,732 secondi con Tomcat 11 e 43,334 secondi con Tomcat 9,
-senza download. Il candidato riproducibile aggiornato T14 misura 12.861.964 byte e ha
-SHA-256
-`c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`.
+senza download. Il candidato riproducibile aggiornato T15 misura 12.862.977
+byte e ha SHA-256
+`4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7`.
 Lo stato vincolante resta sempre in `TASKS.md`.
 
-Il 4 agosto 2026 il componente PHP aggiornato è stato collaudato su Altervista.
-Il fallback server-only risolve il limite dell'account, che non propaga
-`SetEnv`: `/health` risponde HTTP 200, il manifest anonimo HTTP 401 e quello
-autenticato HTTP 200 con otto entità. Il database remoto contiene però una
-riga eccedente sia in `ricovero` sia in `patologia_ricovero`. Il preflight
-T13.1 ha inoltre rilevato una riga `ricovero` comune ma divergente e tre
-progressivi diversi dal seed: cancellare soltanto le due righe extra non
-renderebbe conformi i digest. Nessun DML è stato eseguito. HTTPS fallisce la
-validazione del certificato e l'attivazione dal pannello richiede
-identificazione telefonica. Non usare ancora l'endpoint come sorgente della
-servlet e non modificare il database senza una nuova autorizzazione.
-L'evidenza completa è in `docs/VERIFICA_ALTERVISTA.md`.
+Il 20 agosto 2026 il componente PHP è stato collaudato definitivamente su
+Altervista. Il fallback server-only risolve il limite `SetEnv`; HTTPS presenta
+un certificato valido e `/health` risponde 200 diretto, il manifest anonimo
+401 e quello autenticato 200. Dopo backup completo verificato, le sole otto
+tabelle sanitarie sono state ricostruite dalle fonti ufficiali: 36.176 righe,
+otto digest e `datasetId` coincidono con T07. Una migrazione reale attraverso
+Tomcat 11, Django e PostgreSQL ha completato 364 lotti; il rilancio è
+idempotente e il WAR Tomcat 9 è stato riconfermato. L'evidenza completa è in
+`docs/VERIFICA_ALTERVISTA.md`.
 
 La consegna principale resta il pacchetto offline pubblicato su `consegna`.
-L'endpoint Altervista è opzionale e non è configurato nella servlet finale
-finché dataset T07 e HTTPS valido non risultano entrambi disponibili.
+L'endpoint Altervista conforme è disponibile come sorgente reale opzionale;
+la prova standard del docente resta offline e non richiede rete o token.
 
 Ogni valore d'ambiente ha precedenza e, soltanto per le chiavi assenti, il
 servizio legge `remote-php/config/local.php`. Il repository contiene
@@ -73,8 +70,8 @@ Il database contiene:
 
 Il progetto sorgente è una fonte in sola lettura. Il codice del Progetto 2 vive
 interamente in questa cartella. La prima pubblicazione Altervista è stata
-autorizzata e provata il 4 agosto 2026; ogni ulteriore intervento remoto
-richiede una nuova autorizzazione.
+autorizzata il 4 agosto 2026 e riallineata il 20 agosto 2026; ogni ulteriore
+intervento remoto richiede una nuova autorizzazione.
 
 ## Documenti principali
 
@@ -93,8 +90,8 @@ richiede una nuova autorizzazione.
 - `docs/VERIFICA_T09.md`: pacchetto offline, prova pulita, PDF e casi avversi;
 - `docs/VERIFICA_T11.md`: audit conclusivo, prove finali e limiti;
 - `docs/VERIFICA_T11_1.md`: attese finite e verdetto di consegnabilità;
-- `docs/VERIFICA_ALTERVISTA.md`: fallback remoto, collaudo HTTP, preflight
-  forense del database, digest e limite HTTPS osservati;
+- `docs/VERIFICA_ALTERVISTA.md`: pubblicazione HTTPS, backup/riallineamento,
+  manifest T07 e verticale reale osservata;
 - `docs/BOZZA_EMAIL_CONSEGNA.md`: bozza non inviata e controlli pre-invio;
 - `docs/RISCHI.md`: rischi e contromisure.
 

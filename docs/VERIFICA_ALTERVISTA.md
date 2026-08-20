@@ -1,26 +1,110 @@
 # Verifica della pubblicazione Altervista
 
-Data: 4 agosto 2026.
+Data iniziale: 4 agosto 2026. Aggiornamento finale: 20 agosto 2026.
 
 ## Esito
 
-**PARZIALMENTE OPERATIVA — API corretta, dataset remoto e HTTPS non conformi.**
+**OPERATIVA E CONFORME — HTTPS valido, dataset T07 coincidente e verticale
+reale completata.**
 
 Il servizio PHP è pubblicato all'indirizzo:
 
-`http://motorizzami.altervista.org/drive-aura-api/remote-php/public`
+`https://motorizzami.altervista.org/drive-aura-api/remote-php/public`
 
 Il limite iniziale è risolto: l'account non propaga le direttive `SetEnv` a
-PHP, ma il nuovo caricatore usa il file server-only e permette alle API di
-raggiungere autenticazione e database. Il collaudo osservato ha restituito:
+PHP, ma il caricatore usa configurazione server-only fuori da `public`.
+L'identificazione richiesta dal provider è stata completata manualmente
+dall'utente; HTTPS presenta ora un certificato valido. Il collaudo finale ha
+restituito:
 
-- `GET /health`: HTTP 200, `service=remote-php`, `status=ok`;
+- `GET /health`: HTTPS 200 diretto, senza redirect, `service=remote-php` e
+  `status=ok`;
 - `GET /api/v1/manifest` senza Bearer: HTTP 401 `UNAUTHORIZED`;
-- la stessa richiesta con Bearer corretto: HTTP 200 e otto entità.
+- la stessa richiesta con Bearer corretto: HTTP 200, otto entità, conteggi e
+  digest identici a T07.
 
-La pubblicazione non è però approvabile come sorgente della servlet: due
-conteggi eccedono di una riga il dataset atteso e l'URL HTTPS non supera la
-validazione del certificato.
+L'endpoint è quindi utilizzabile come sorgente remota reale della servlet.
+La verifica standard della consegna resta il percorso offline, più semplice e
+ripetibile per il docente; Altervista è un'integrazione reale opzionale.
+
+## Evidenza finale T15
+
+### HTTPS, routing e protezione
+
+Il pannello Altervista dichiara HTTPS attivo. Il certificato è stato validato
+senza bypass TLS. Entrambe le forme `/health` e `/health/` rispondono in HTTPS
+con 200; la forma senza slash non emette più il precedente redirect verso
+HTTP. La correzione Apache usa `DirectorySlash Off`,
+`RewriteOptions AllowNoSlash` e instrada entrambe le forme al front controller.
+
+La cartella pubblica contiene soltanto `.htaccess`, `health/` e `index.php`.
+Non sono presenti diagnostici o file con segreti. Gli accessi diretti a
+`config/` e ai file privati restituiscono 403.
+
+### Backup e riallineamento del database
+
+Prima di qualunque modifica è stato esportato da phpMyAdmin un backup SQL
+completo delle otto tabelle. Il file, conservato fuori dal repository, è stato
+aperto, ispezionato e ripristinato in un MariaDB isolato:
+
+- dimensione: 2.495.836 byte;
+- SHA-256:
+  `fd8ef3b3153ca742ccd765b039e0b76046171fd32f73236c4b075d5acec7d8a3`;
+- conteggi ripristinati: 3.200/200/143/81/30/12.001/20.493/30.
+
+Il backup ha confermato che il database remoto contiene soltanto le otto
+tabelle sanitarie. Il confronto semantico ha inoltre rilevato l'assenza di
+cinque vincoli `CHECK`; per questo non è stato usato un semplice seed su uno
+schema potenzialmente divergente. È stato importato una sola volta un rebuild
+limitato alle otto tabelle, composto dallo schema e dal seed ufficiali del
+Progetto 1, verificati byte per byte. phpMyAdmin ha completato 148 query in
+3,122 secondi. Nessuna tabella estranea è stata modificata e i vincoli sono
+rimasti attivi nello schema finale.
+
+### Manifest finale
+
+| Entità | Righe | Digest SHA-256 |
+|---|---:|---|
+| `cittadino` | 3.200 | `308b6ef1e27d1d6087b52ed0168856b1d8420b1262c7a6bcf1b550c244f77f70` |
+| `patologia` | 200 | `3173f4a9db15ebdf33223cba36f1860cdb730695716e428865868691bd420c27` |
+| `patologia_cronica` | 143 | `17de8da61d5469e012058ce10d667e1e9a8442acab744bd9c64529814a927f2b` |
+| `patologia_mortale` | 81 | `f96723546479571cd2b78d9ded97676443e561c7766b365c8e2517fbe244183d` |
+| `ospedale` | 30 | `fa37fd03a5f4eeee9f02fb682b00053862cde09ccbf25fe1583635fc9fe04963` |
+| `ricovero` | 12.000 | `ff1640d12101c1df35a3c484dd3c541e26bf58a68b63fc42c68aba5ac46105ca` |
+| `patologia_ricovero` | 20.492 | `357043b4bf2e5fec2f461038b3bbce5e546a2d82f8b1d635105709504ea574ed` |
+| `progressivo_ricovero` | 30 | `687077ef4989a82595a3570b388829bbcb1bf51813fc0dfeaf83eee9fac7d653` |
+
+Il totale è 36.176 righe e il `datasetId` coincide con T07:
+`75f461f906b5a6a4ed1252218ea2db664d8f929ba68403760474ff2f4d199e39`.
+
+### Verticale reale e idempotenza
+
+Da un PostgreSQL 18 vuoto è stata osservata la verticale completa:
+
+`Altervista HTTPS -> PHP/PDO -> servlet Tomcat 11 -> Django -> PostgreSQL`.
+
+La migrazione ha concluso 36.176 righe in 364 lotti, stato `completed`, in
+117,637 secondi applicativi e 122,139 secondi wall-clock. L'audit indipendente
+ha confermato gli otto digest, zero duplicati PK, zero FK orfane, univocità,
+domini e progressivi. Il rilancio con lo stesso `migrationId` è terminato
+idempotentemente in 2,748 secondi. Lo stesso stato è stato poi riletto e
+rilanciato tramite il WAR Tomcat 9 in 3,089 secondi, seguito da un secondo
+rilancio idempotente in 3,002 secondi.
+
+Non sono stati registrati payload personali o segreti. Il Progetto 1 è
+rimasto in sola lettura e il vecchio sito Altervista non è stato cancellato.
+
+### Candidato di consegna aggiornato
+
+Manuale e scelte progettuali sono stati rigenerati, renderizzati e controllati
+su tutte le pagine: A4, 3+1 pagine, senza tagli, sovrapposizioni o caratteri
+corrotti. Il nuovo ZIP misura 12.862.977 byte e ha SHA-256
+`4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7`.
+L'integrità è stata riconfermata da una nuova estrazione in percorso corto:
+121 entry/119 payload, 2 WAR, 7 wheel e 2 PDF, senza segreti, cache, log,
+`target` o runtime temporanei.
+La suite installer finale ha superato 32/32 casi, compresa la regressione per
+un processo che termina durante la verifica di identità del cleanup.
 
 ## Configurazione server-only
 
@@ -44,7 +128,7 @@ routing e nessuna direttiva `SetEnv` con credenziali.
 I segreti API e cursore sono lunghi, casuali e distinti. Nessun valore reale è
 stato registrato nella documentazione, nei log o nel repository.
 
-## Rotazione dell'accesso database
+## Stato storico T13: rotazione dell'accesso database
 
 La configurazione era stata inizialmente caricata come normale file pubblico
 `htaccess`; la password allora presente deve quindi essere considerata
@@ -56,7 +140,7 @@ facoltativa vuota, valore usato dal file server-only.
 Il ripristino non ha modificato dati o schema. Non sono state eseguite query
 di scrittura, importazioni o migrazioni.
 
-## Conteggi osservati
+## Stato storico T13: conteggi osservati
 
 | Entità | Atteso | Osservato | Esito |
 |---|---:|---:|---|
@@ -152,7 +236,7 @@ Il `datasetId` finale osservato è
 Nello stesso collaudo `/health` ha restituito ancora HTTP 200 `status=ok`, il
 manifest anonimo HTTP 401 e quello autenticato HTTP 200 con otto entità.
 
-## HTTPS
+## Stato storico T13.1: HTTPS
 
 Il tentativo su
 `https://motorizzami.altervista.org/drive-aura-api/remote-php/public/health`
@@ -167,7 +251,7 @@ Non è stato usato alcun bypass della verifica TLS. Finché il provider non
 espone un certificato valido, l'endpoint non deve essere configurato nella
 servlet né usato per una migrazione reale.
 
-## Pulizia e confini verificati
+## Stato storico T13.1: pulizia e confini verificati
 
 Al termine la cartella pubblica contiene soltanto:
 
@@ -188,7 +272,7 @@ Il vecchio sito non è stato cancellato. Il Progetto 1 è rimasto in sola
 lettura, il branch `consegna` non è stato modificato e il database non è stato
 alterato. Non è stata lanciata la migrazione massiva.
 
-## Verifiche locali
+## Verifiche locali precedenti
 
 - PHP 8.3.32: sei comandi di test superati; il test PDO d'integrazione ha
   prodotto lo skip previsto quando non richiesto;
@@ -203,7 +287,7 @@ alterato. Non è stata lanciata la migrazione massiva.
 - il candidato `dist` e il branch orfano `consegna` non sono stati rigenerati
   o modificati.
 
-## Limite residuo e prossimo passo
+## Limite storico prima di T15
 
 Il fallback di configurazione è funzionante e non espone segreti. Restano due
 blocchi esterni al codice pubblicato:

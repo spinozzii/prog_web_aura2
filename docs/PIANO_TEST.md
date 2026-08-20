@@ -243,13 +243,13 @@ rilevati da Maven.
 
 Sono passati runner rigoroso, errore senza runtime, `-AllowPartial` con tre
 skip, lint di 21 file PHP, 29 test Django, lock PostgreSQL reale con
-rollback/ripresa, timeout PDO reale, `mvn clean test/package`, 31 casi
+rollback/ripresa, timeout PDO reale, `mvn clean test/package`, 32 casi
 installer e 6 test del mock remoto. Le prove pulite finali sono terminate in
 42,732 secondi wall-clock con Tomcat 11 e 43,334 secondi con Tomcat 9.
 
-Il candidato riproducibile aggiornato T14 contiene 120 entry/118 payload,
-misura 12.861.964 byte e ha SHA-256
-`c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`.
+Il candidato riproducibile aggiornato T15 contiene 121 entry/119 payload,
+misura 12.862.977 byte e ha SHA-256
+`4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7`.
 Tutti i payload coincidono con le sorgenti; i quattro render PDF sono stati
 ispezionati. Il dettaglio e il verdetto `CONSEGNABILE` sono in
 `docs/VERIFICA_T11_1.md`.

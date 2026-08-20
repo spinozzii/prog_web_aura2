@@ -1,19 +1,15 @@
 # Checklist del docente
 
-Stato verificato nell'audit T11.1 del 31 luglio 2026 e aggiornato dopo la prova
-Altervista del 4 agosto 2026. Le caselle non selezionate riguardano il blocco
-remoto descritto sotto o operazioni proprie dell'email, che non è stata
-inviata.
+Stato verificato nell'audit T11.1 del 31 luglio 2026 e aggiornato dopo il
+collaudo Altervista finale del 20 agosto 2026. Le sole caselle non selezionate
+riguardano operazioni proprie dell'email, che non è stata inviata.
 
 ## Scelta e architettura
 
 - [x] La consegna dichiara esplicitamente il caso B.
-- [ ] Il componente remoto PHP è stato caricato e il fallback server-only è
-      operativo: health risponde HTTP 200, il manifest anonimo HTTP 401 e il
-      manifest autenticato HTTP 200 con otto entità. La casella resta aperta
-      perché due conteggi remoti eccedono di una riga, una riga comune e tre
-      progressivi divergono dal seed e HTTPS non supera la validazione del
-      certificato; vedere `docs/VERIFICA_ALTERVISTA.md`.
+- [x] Il componente remoto PHP è pubblicato con configurazione server-only:
+      HTTPS e certificato sono validi, health risponde 200, il manifest
+      anonimo 401 e quello autenticato 200 con dataset, conteggi e digest T07.
 - [x] Il servizio locale è Python/Django.
 - [x] Lo strato intermedio è una servlet Java.
 - [x] Il percorso reale dei dati è PHP → servlet → Django → PostgreSQL.
@@ -94,8 +90,8 @@ inviata.
 ## Materiale di consegna
 
 - [x] La consegna principale e la verifica standard sono il pacchetto offline;
-      Altervista è un'integrazione opzionale e non è configurato nella servlet
-      finale finché dataset T07 e certificato HTTPS non risultano conformi.
+      Altervista è anche disponibile come sorgente reale opzionale, con
+      dataset T07 e certificato HTTPS verificati.
 - [x] È incluso un dump verificabile del database di origine.
 - [x] Sono inclusi codice, configurazioni di esempio e artefatti.
 - [x] Cache, log, ambienti virtuali, credenziali e file IDE sono esclusi.

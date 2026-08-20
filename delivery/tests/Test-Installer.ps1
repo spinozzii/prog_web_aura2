@@ -140,6 +140,49 @@ try {
     Write-Host 'PASS: WaitForExit limitato, identita verificata e Dispose eseguito.'
     $passed++
 
+    $commonModule = Get-Module | Where-Object {
+        $_.Path -eq (Join-Path $repositoryRoot 'delivery\installer\DriveAura.Common.psm1')
+    }
+    if ($null -eq $commonModule) {
+        throw 'Modulo comune installer non disponibile per la regressione cleanup.'
+    }
+    $identityRaceTimer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $identityRaceCalls = & $commonModule {
+            $script:driveAuraIdentityRaceCalls = 0
+            $script:driveAuraIdentityRaceProcess = [pscustomobject]@{ Path = '' }
+            function script:Get-Process {
+                param([int]$Id, [object]$ErrorAction)
+
+                $script:driveAuraIdentityRaceCalls++
+                if ($script:driveAuraIdentityRaceCalls -le 2) {
+                    return $script:driveAuraIdentityRaceProcess
+                }
+                return $null
+            }
+            try {
+                Stop-DriveAuraOwnedProcessTree -Identity ([pscustomobject]@{
+                        pid = 4242
+                        executablePath = $env:ComSpec
+                        startedUtcTicks = '1'
+                        commandMarker = 'race cleanup Django simulata'
+                    }) -Label 'Django simulato' -TimeoutSeconds 1
+                return $script:driveAuraIdentityRaceCalls
+            } finally {
+                Remove-Item Function:\Get-Process -Force -ErrorAction SilentlyContinue
+                Remove-Variable driveAuraIdentityRaceCalls,driveAuraIdentityRaceProcess `
+                    -Scope Script -ErrorAction SilentlyContinue
+            }
+        }
+    } finally {
+        $identityRaceTimer.Stop()
+    }
+    if ($identityRaceCalls -lt 3 -or $identityRaceTimer.Elapsed.TotalSeconds -gt 3) {
+        throw 'La race di uscita durante la verifica identita non e stata gestita entro il timeout.'
+    }
+    Write-Host 'PASS: processo gia terminato durante la verifica identita ignorato in sicurezza.'
+    $passed++
+
     $shortProbe = 'C:\DriveAura51\drive-aura-51-offline'
     $null = Assert-DriveAuraPathBudget `
         -RootPath $shortProbe -RequiredRelativeLength 104 `

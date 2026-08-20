@@ -516,25 +516,34 @@ function Test-DriveAuraProcessIdentity {
     )
 
     $processId = [int]$Identity.pid
-    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-    if ($null -eq $process) {
-        return $false
-    }
-    $actualPathValue = [string]$process.Path
-    if ([string]::IsNullOrWhiteSpace($actualPathValue)) {
+    try {
         $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
         if ($null -eq $process) {
             return $false
         }
         $actualPathValue = [string]$process.Path
         if ([string]::IsNullOrWhiteSpace($actualPathValue)) {
-            throw "Rifiutato uso PID ${processId}: percorso $Label non disponibile."
+            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+            if ($null -eq $process) {
+                return $false
+            }
+            $actualPathValue = [string]$process.Path
+            if ([string]::IsNullOrWhiteSpace($actualPathValue)) {
+                throw "Rifiutato uso PID ${processId}: percorso $Label non disponibile."
+            }
         }
+        $actualPath = ConvertTo-DriveAuraProcessPath -Value $actualPathValue
+        $expectedPath = ConvertTo-DriveAuraProcessPath -Value ([string]$Identity.executablePath)
+        $actualTicks = [long]$process.StartTime.ToUniversalTime().Ticks
+        $expectedTicks = [long]$Identity.startedUtcTicks
+    } catch {
+        # The process can exit after Get-Process but before Path/StartTime is read.
+        # Treat that race as an idempotent stop only after confirming the PID is gone.
+        if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
+            return $false
+        }
+        throw
     }
-    $actualPath = ConvertTo-DriveAuraProcessPath -Value $actualPathValue
-    $expectedPath = ConvertTo-DriveAuraProcessPath -Value ([string]$Identity.executablePath)
-    $actualTicks = [long]$process.StartTime.ToUniversalTime().Ticks
-    $expectedTicks = [long]$Identity.startedUtcTicks
     if (-not $actualPath.Equals($expectedPath, [StringComparison]::OrdinalIgnoreCase)) {
         throw ("Rifiutato uso PID {0}: percorso {1} non coincidente." -f
             $processId, $Label)

@@ -145,6 +145,12 @@ aggiornato T14, rigenerato per correggere le sole istruzioni di consegna, è
 entry/118 payload. Il suo manuale dichiara la verifica offline come standard e
 non indica l'Altervista attuale quale sorgente finale della servlet.
 
+Il candidato corrente T15 mantiene la verifica offline come standard e
+documenta Altervista come sorgente reale opzionale ora conforme. Misura
+12.862.977 byte, ha SHA-256
+`4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7` e
+contiene 121 entry/119 payload.
+
 Due build consecutive hanno prodotto byte identici.
 
 ```text
@@ -209,7 +215,7 @@ PK, FK, unicità, domini e progressivi. Il Progetto 1 è pulito e invariato.
 - la prova rapida usa una sorgente contrattuale loopback; la verticale
   PHP/PDO massiva resta quella realmente osservata e documentata in T07.
 
-### Requisiti non verificabili localmente
+### Requisiti non verificabili nello snapshot T11.1
 
 - pubblicazione e limiti effettivi dell'account Altervista;
 - indirizzi CC e accessibilità degli allegati dopo l'invio dell'email.
@@ -220,6 +226,8 @@ Nessun problema tecnico bloccante era noto nei percorsi verificati localmente.
 Il riferimento a `503` descriveva il solo tentativo storico prima di T13. Lo
 stato successivo osservato è: health HTTP 200, manifest anonimo HTTP 401 e
 manifest autenticato HTTP 200 con otto entità, grazie al fallback server-only.
-L'endpoint rimane però escluso dalla servlet finale: il database diverge dal
-dataset T07 e HTTPS non ha un certificato valido. L'evidenza aggiornata è in
-`docs/VERIFICA_ALTERVISTA.md`. Email, tag e release non sono stati eseguiti.
+Questa era ancora la situazione T13. L'aggiornamento T15 del 20 agosto 2026 ha
+poi validato HTTPS, riallineato le sole otto tabelle al dataset T07 dopo un
+backup completo e osservato la verticale reale da Altervista a PostgreSQL.
+L'evidenza corrente è in `docs/VERIFICA_ALTERVISTA.md`. Email, tag e release
+non sono stati eseguiti.
