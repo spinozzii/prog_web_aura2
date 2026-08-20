@@ -41,7 +41,14 @@ vengono riconciliati con una nuova autorizzazione.
 - `Test-PackageIntegrity.ps1` è passato da una nuova estrazione in percorso
   corto; le quattro pagine PDF A4 sono state renderizzate e controllate, senza
   tagli, sovrapposizioni, caratteri corrotti, margini irregolari o pagine
-  superflue. Il branch `consegna` deve essere aggiornato con i soli due file.
+  superflue;
+- `origin/consegna` è stato avanzato senza force push al commit
+  `1031a84bdef8c4bc1be7b85a1465394ce0f1e156`. Il tree remoto contiene ancora
+  soltanto `drive-aura-51-offline.zip` e
+  `drive-aura-51-offline.zip.sha256` alla radice; entrambi i blob sono
+  byte-identici a `dist`. Il commit radice T12
+  `2e67fcebe01f090e175b74b7ca79405e39b13c77` resta realmente orfano, mentre
+  T14 ne è il normale avanzamento documentale del candidato.
 
 ## Esito T13.2 - valutazione ripristino completo Altervista
 

@@ -24,7 +24,10 @@ Nessuna.
     `c4b042067784ea5ceb30d21cd5d836dd55e70eb6397628d417d1fa75aa3a4732`,
     120 entry/118 payload, 2 WAR, 7 wheel e 2 PDF; integrità da estrazione
     corta superata e PDF A4 3+1 pagine controllati visivamente;
-  - in attesa di pubblicazione e verifica del branch `consegna` aggiornato.
+  - `origin/consegna` aggiornato senza force push al commit
+    `1031a84bdef8c4bc1be7b85a1465394ce0f1e156`: tree remoto ancora composto
+    esclusivamente dai due allegati alla radice, ZIP e sidecar byte-identici a
+    `dist`; il commit radice orfano T12 resta senza genitori.
 
 - [ ] **T13.2 - Valutazione rapida del ripristino completo Altervista**
   - nuova autorizzazione applicata senza avviare la migrazione Django/PostgreSQL;
