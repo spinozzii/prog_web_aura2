@@ -549,6 +549,16 @@ if (-not (Test-Path -LiteralPath $PidPath)) {
     Write-Host 'PASS: connector Tomcat NIO2 configurato per Tomcat 9 e 11.'
     $passed++
 
+    $quickBatchText = Get-Content -Raw -Encoding UTF8 `
+        -LiteralPath (Join-Path $repositoryRoot 'delivery\verifica-rapida.bat')
+    if ($quickBatchText -notmatch 'Test-PackageIntegrity\.ps1' -or
+        $quickBatchText -notmatch 'Start-QuickVerification\.ps1' -or
+        $quickBatchText -match '(?im)^\s*set\s+/p\b') {
+        throw "Il BAT di verifica rapida non delega l'integrita/ingresso sicuro oppure legge segreti da cmd."
+    }
+    Write-Host 'PASS: BAT rapido verifica integrita e non legge segreti da cmd.'
+    $passed++
+
     $startText = Get-Content -Raw -Encoding UTF8 `
         -LiteralPath (Join-Path $repositoryRoot 'delivery\installer\Start-DriveAura.ps1')
     $settingsText = Get-Content -Raw -Encoding UTF8 `

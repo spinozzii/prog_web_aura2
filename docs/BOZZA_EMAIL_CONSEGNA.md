@@ -22,15 +22,20 @@ Allegati:
 - drive-aura-51-offline.zip.sha256
 
 SHA-256 dello ZIP:
-4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7
+ae7d6ef17c9f1a31291c5a53766e5bc4fba7fc73bfaf5d3d8fa5e4c4d521d2a0
 
 Il pacchetto contiene il manuale PDF, il documento PDF delle scelte, i
 sorgenti, i WAR Tomcat 9 e 11, la wheelhouse offline, il dump sorgente e gli
-strumenti di installazione e verifica.
+strumenti di installazione e verifica, incluso l'ingresso `verifica-rapida.bat`.
 
 La verifica standard della consegna è offline e locale. È inoltre disponibile
-come sorgente reale opzionale il servizio PHP Altervista, verificato con HTTPS
-valido e dataset massivo T07 conforme; il token non è incluso negli allegati.
+come sorgente reale opzionale il servizio PHP Altervista:
+https://motorizzami.altervista.org/drive-aura-api/remote-php/public/health
+Il servizio usa HTTPS valido e dataset massivo T07 conforme. Per una migrazione
+reale serve soltanto `REMOTE_API_SECRET`, fornito separatamente o su richiesta;
+non sono incluse né necessarie credenziali del pannello Altervista o password
+del suo database. Il docente inserisce invece le proprie credenziali PostgreSQL
+locali durante la verifica.
 
 Cordiali saluti,
 

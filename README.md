@@ -28,9 +28,10 @@ T07 ha verificato la verticale completa sul dataset massivo di 36.176 righe.
 T09 ha prodotto il pacchetto offline. T11.1 ha chiuso i rischi di attese
 indefinite e ha riconfermato la consegnabilità: le prove finali da ZIP pulito
 sono terminate in 42,732 secondi con Tomcat 11 e 43,334 secondi con Tomcat 9,
-senza download. Il candidato riproducibile aggiornato T15 misura 12.862.977
-byte e ha SHA-256
-`4805ac6632e38c51985b0b628dc3f719fc10b0f4f4c4177746bfa9dd10fa79c7`.
+senza download. T16 aggiunge `verifica-rapida.bat`, un ingresso guidato da
+Prompt dei comandi che verifica l'integrità e non sovrascrive database
+esistenti. Il candidato aggiornato misura 12.867.808 byte e ha SHA-256
+`ae7d6ef17c9f1a31291c5a53766e5bc4fba7fc73bfaf5d3d8fa5e4c4d521d2a0`.
 Lo stato vincolante resta sempre in `TASKS.md`.
 
 Il 20 agosto 2026 il componente PHP è stato collaudato definitivamente su

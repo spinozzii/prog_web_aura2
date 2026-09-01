@@ -67,6 +67,8 @@ riguardano operazioni proprie dell'email, che non è stata inviata.
 - [x] Il tempo è stato misurato e registrato.
 - [x] Prerequisiti e versioni ammesse sono espliciti.
 - [x] I passi sono numerati e facilmente individuabili.
+- [x] `verifica-rapida.bat` offre un ingresso da Prompt dei comandi, richiama
+      automaticamente il controllo di integrità e non salva segreti.
 - [x] I casi avversi hanno diagnosi e soluzione.
 - [x] Non viene dato nulla per scontato.
 - [x] Il comando di verifica prova davvero i tre servizi e il database.
@@ -96,6 +98,8 @@ riguardano operazioni proprie dell'email, che non è stata inviata.
 - [x] Sono inclusi codice, configurazioni di esempio e artefatti.
 - [x] Cache, log, ambienti virtuali, credenziali e file IDE sono esclusi.
 - [x] L'archivio viene estratto e verificato in una cartella nuova.
+- [x] Il checksum resta incluso e il suo controllo interno è automatico dal
+      BAT; il sidecar permette anche il controllo esterno dello ZIP.
 - [x] I PDF si aprono e non presentano testo tagliato o illeggibile.
 
 ## Email

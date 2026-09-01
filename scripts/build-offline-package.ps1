@@ -452,6 +452,7 @@ try {
     # Delivery runtime: only the explicit release roots, never delivery/tests.
     Copy-RequiredFile 'delivery\README.md' 'README.md'
     Copy-RequiredFile 'delivery\ALTERVISTA.md' 'ALTERVISTA.md'
+    Copy-RequiredFile 'delivery\verifica-rapida.bat' 'verifica-rapida.bat'
     Copy-AllowedTree 'delivery\config' 'config'
     Copy-AllowedTree 'delivery\installer' 'installer'
     Copy-FlatAllowlist `

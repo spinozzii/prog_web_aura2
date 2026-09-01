@@ -12,8 +12,11 @@ un compilatore Java. Deve avere:
 - Java 8+ con Tomcat 9, oppure Java 17+ con Tomcat 11;
 - PostgreSQL da 14 a 18 già avviato.
 
-Leggere prima `pdf/manuale-drive-aura-51.pdf`. Non inserire segreti nei file
-del pacchetto: impostarli soltanto nella sessione PowerShell.
+Avviare prima `verifica-rapida.bat` oppure leggere
+`pdf/manuale-drive-aura-51.pdf`. Il BAT esegue l'integrità, chiede percorsi e
+sole credenziali PostgreSQL locali, genera i segreti sintetici in memoria e si
+ferma se i due database scelti esistono già. Non inserire segreti nei file del
+pacchetto.
 
 ## Estrarre in una radice corta
 
@@ -30,6 +33,10 @@ può prevenire un errore avvenuto prima, mentre lo ZIP viene estratto.
 Set-ExecutionPolicy -Scope Process Bypass
 .\installer\Test-PackageIntegrity.ps1
 ```
+
+Il checksum esterno `.sha256` resta incluso; il BAT esegue automaticamente il
+controllo interno. Non è obbligatorio configurare il `PATH`: indicare percorsi
+completi per `python.exe`, JDK, Tomcat e `bin` PostgreSQL.
 
 ## Configurazione
 

@@ -434,12 +434,16 @@ foreach ($relative in $checksumMap.Keys) {
 
 Assert-RequiredFile -ActualFiles $actualFileMap -RelativePath 'README.md'
 Assert-RequiredFile -ActualFiles $actualFileMap -RelativePath 'ALTERVISTA.md'
+Assert-RequiredFile -ActualFiles $actualFileMap -RelativePath 'verifica-rapida.bat'
 Assert-RequiredFile `
     -ActualFiles $actualFileMap `
     -RelativePath 'installer/Test-PackageIntegrity.ps1'
 Assert-RequiredFile `
     -ActualFiles $actualFileMap `
     -RelativePath 'installer/Configure-DriveAura.ps1'
+Assert-RequiredFile `
+    -ActualFiles $actualFileMap `
+    -RelativePath 'installer/Start-QuickVerification.ps1'
 Assert-RequiredFile `
     -ActualFiles $actualFileMap `
     -RelativePath 'installer/Start-DriveAura.ps1'

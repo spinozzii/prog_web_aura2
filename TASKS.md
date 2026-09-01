@@ -10,6 +10,28 @@ Nessuna.
 
 ## IN REVISIONE
 
+- [ ] **T16 - Accesso semplificato alla consegna offline**
+  - aggiunto `verifica-rapida.bat` alla radice del pacchetto: avvia PowerShell
+    5.1 in modo esplicito, esegue prima `Test-PackageIntegrity.ps1`, non salva
+    segreti e delega i timeout all'installer già verificato;
+  - il nuovo ingresso richiede soltanto percorsi e credenziali PostgreSQL
+    locali; genera in memoria i quattro segreti della prova sintetica e non
+    richiede `REMOTE_API_SECRET` Altervista;
+  - prima di creare qualsiasi database verifica che operativo e verifica non
+    esistano già e si ferma con una diagnosi, senza cancellare, svuotare o
+    sovrascrivere dati;
+  - manuale, PDF, README, checklist e bozza email chiariscono PATH, versioni
+    supportate, credenziali, checksum e la distinzione tra prova offline e
+    migrazione massiva remota;
+  - non aggiunto un BAT per la migrazione Altervista: il comando PowerShell
+    massivo già consegnato resta più esplicito sui prerequisiti e con timeout
+    finito;
+  - rigenerato il candidato: 12.867.808 byte, SHA-256
+    `ae7d6ef17c9f1a31291c5a53766e5bc4fba7fc73bfaf5d3d8fa5e4c4d521d2a0`,
+    123 entry/121 payload, 2 WAR, 7 wheel e 2 PDF; integrità da estrazione
+    corta, suite installer 33/33 e render visivo PDF 3+1 pagine superati. In
+    attesa revisione Work.
+
 - [ ] **T15 - Riallineamento e collaudo finale Altervista**
   - HTTPS attivato dopo l'identificazione completata manualmente dall'utente;
     certificato valido, `/health` e `/health/` HTTPS 200 diretti, manifest

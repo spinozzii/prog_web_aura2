@@ -3,7 +3,7 @@
 ## Manuale di installazione e verifica offline
 
 Secondo progetto di Programmazione Web - scelta B - Versione candidata:
-20 agosto 2026
+1 settembre 2026
 
 Questo pacchetto migra i dati del Servizio Sanitario dal servizio PHP remoto a
 PostgreSQL locale. Il percorso applicativo è:
@@ -16,7 +16,7 @@ massiva PHP/PDO già eseguita.
 
 ## 1. Prerequisiti
 
-Usare Windows con PowerShell 5.1 o successivo e software già installato:
+Usare Windows e il software già installato:
 
 1. Python 3.12 x64 completo di `venv`;
 2. Java 8 o successivo per Tomcat 9;
@@ -25,9 +25,17 @@ Usare Windows con PowerShell 5.1 o successivo e software già installato:
 5. PostgreSQL da 14 a 18, avviato e raggiungibile.
 
 Non servono Internet, Maven, Composer, Node.js, IDE o compilazione Java.
-L'utente PostgreSQL deve poter creare un database. Tenere a portata di mano i
-percorsi di `python.exe`, della directory Java, di Tomcat e della cartella
+Windows PowerShell 5.1 è normalmente incluso in Windows: il file
+`verifica-rapida.bat` lo avvia automaticamente. L'utente PostgreSQL deve poter
+creare database nuovi. Tenere a portata di mano i percorsi completi di
+`python.exe`, della directory JDK, della directory Tomcat e della cartella
 `bin` di PostgreSQL.
+
+Non è obbligatorio aggiungere questi programmi al `PATH`: il BAT e il
+configuratore accettano i percorsi completi. Se invece si usa il `PATH`,
+controllare `python --version`, `java -version` e `psql --version`. Se un
+comando non è riconosciuto, indicare il percorso completo richiesto dal BAT o
+da `config\parameters.example.ps1`, senza modificare il sistema.
 
 Controllare le versioni:
 
@@ -38,18 +46,22 @@ Controllare le versioni:
 & 'C:\Program Files\PostgreSQL\18\bin\psql.exe' --version
 ```
 
+Versioni supportate: Python **3.12 x64** completo di `venv` (non embeddable),
+PostgreSQL **14-18**, Tomcat **9 o 11**. Tomcat 10 non è supportato. Abbinare
+Tomcat 9 a Java 8+ e Tomcat 11 a Java 17+; il configuratore seleziona il WAR
+compatibile. Le versioni diverse da queste non sono garantite: installare una
+versione supportata invece di forzare l'avvio.
+
 ## 2. Estrarre e controllare il pacchetto
 
 **Importante:** estrarre direttamente in `C:\DriveAura51`. PowerShell 5.1 può
 fallire durante `Expand-Archive` se la directory padre è molto lunga; nessuno
 script può prevenire un errore già avvenuto in questa fase.
 
-1. Mettere ZIP e file `.sha256` nella stessa cartella e aprire PowerShell.
+1. Mettere ZIP e file `.sha256` nella stessa cartella.
 2. Confrontare il checksum esterno prima di estrarre lo ZIP.
 3. Estrarre lo ZIP nella cartella nuova `C:\DriveAura51`.
-4. Aprire PowerShell nella cartella `drive-aura-51-offline`.
-5. Abilitare gli script soltanto per la sessione corrente e verificare gli
-   hash interni prima di inserire segreti.
+4. Aprire `drive-aura-51-offline` e avviare `verifica-rapida.bat`.
 
 ```powershell
 $expected = (Get-Content '.\drive-aura-51-offline.zip.sha256' -Raw).Split()[0]
@@ -59,17 +71,37 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\installer\Test-PackageIntegrity.ps1
 ```
 
-Attendere `Integrità pacchetto valida`. Se il controllo fallisce, eliminare
-la copia estratta e ripartire dallo ZIP originale.
+Il comando sopra è l'alternativa PowerShell diretta. Il BAT esegue lo stesso
+controllo interno automaticamente prima di chiedere qualsiasi dato. Attendere
+`Integrità pacchetto valida`. Se il controllo fallisce, eliminare la copia
+estratta e ripartire dallo ZIP originale. Il checksum non è un compito
+aggiuntivo: protegge da allegati incompleti o alterati.
 Il primo script controlla anche il budget dei percorsi prima di traversare o
 copiare file. Se è insufficiente, chiede di riestrarre in `C:\DriveAura51` e
 si ferma senza spostare o cancellare nulla.
 
-## 3. Impostare i segreti
+## 3. Verifica rapida consigliata da `cmd`
 
-Impostare i valori soltanto nella sessione PowerShell. Non modificare i file
-del pacchetto e non passare segreti come parametri ai processi. Disabilitare
-prima il salvataggio della cronologia della sessione:
+Fare doppio clic su `verifica-rapida.bat`, oppure eseguire da Prompt dei
+comandi:
+
+```text
+verifica-rapida.bat
+```
+
+Il BAT chiede i percorsi completi, utente/password del **PostgreSQL locale** e
+due nomi di database nuovi. Genera quattro segreti soltanto nella memoria
+della sessione per la sorgente sintetica e la verifica locale; non li salva e
+non richiede rete o token Altervista. Se il database operativo o quello di
+verifica esiste già, il BAT si ferma e chiede di scegliere un nome nuovo:
+non cancella, svuota o sovrascrive database esistenti.
+
+## 4. Alternativa PowerShell diretta
+
+Usare questa alternativa solo se si preferisce configurare manualmente i
+parametri. Impostare i valori soltanto nella sessione PowerShell. Non
+modificare i file del pacchetto e non passare segreti come parametri ai
+processi. Disabilitare prima il salvataggio della cronologia della sessione:
 
 ```powershell
 if (Get-Module PSReadLine) { Set-PSReadLineOption -HistorySaveStyle SaveNothing }
@@ -84,7 +116,13 @@ Usare valori distinti e chiudere la sessione al termine. I segreti restano
 nell'ambiente dei processi e non entrano nell'archivio, nello stato installato,
 nei log o nella cronologia PowerShell persistente.
 
-## 4. Configurare e verificare
+Per la prova offline, `REMOTE_API_SECRET` è un segreto della sorgente
+sintetica: non è il Bearer Altervista. Il Bearer Altervista serve soltanto alla
+migrazione remota estesa della sezione 7 ed è fornito separatamente o su
+richiesta. Non servono credenziali del pannello Altervista né password del suo
+database.
+
+## 5. Configurare e verificare
 
 Adattare i quattro percorsi. Il comando crea
 `..\drive-aura-51-runtime`, un ambiente virtuale, un `CATALINA_BASE` isolato
@@ -131,29 +169,21 @@ configurabile con `-VerificationTimeoutSeconds` fra 60 e 240 secondi. In caso
 di errore o timeout mostra le code dei log, arresta soltanto l'albero di
 processi registrato e verifica che le porte siano state liberate.
 
-## 5. Cosa verifica il comando
+## 6. Cosa verifica il comando
 
-Il configuratore controlla:
-
-- versione e architettura di Python;
-- compatibilità fra Java, Tomcat 9/11 e WAR;
-- disponibilità e autenticazione PostgreSQL;
-- hash del pacchetto, delle wheel, dei WAR e del dump;
-- installazione Django/psycopg senza rete;
-- migrazioni Django e database dedicato;
-- salute della sorgente sintetica, della servlet e di Django;
-- readiness PostgreSQL;
-- migrazione delle otto entità, digest, vincoli e idempotenza;
-- arresto dei processi avviati dal controllo.
+Il configuratore controlla versione e architettura dei runtime, compatibilità
+Java/Tomcat/WAR, PostgreSQL, hash di pacchetto-wheel-WAR-dump, installazione
+Django senza rete, migrazioni, salute, readiness, migrazione delle otto entità,
+digest, vincoli, idempotenza e arresto dei processi avviati dal controllo.
 
 La verifica rapida usa dati sintetici leggibili. La migrazione massiva
 PHP/PDO di 36.176 righe è un collaudo storico T07 separato: non fa parte della
 verifica standard di consegna e richiede una sorgente remota conforme.
 
-## 6. Servizio PHP remoto: sorgente reale opzionale
+## 7. Servizio PHP remoto: sorgente reale opzionale
 
 La consegna e la verifica standard sono **offline e locali**: completare le
-sezioni 1-5. Non è richiesto un account Altervista né una migrazione reale per
+sezioni 1-6. Non è richiesto un account Altervista né una migrazione reale per
 valutare il pacchetto.
 
 L'endpoint Altervista documentato in `ALTERVISTA.md` è disponibile come
@@ -166,9 +196,25 @@ Usare il remoto soltanto con rete disponibile e con il Bearer ricevuto fuori
 dal pacchetto. Non disabilitare TLS e non registrare il token. Sul server i
 segreti stanno in `remote-php/config/local.php`, fuori da `public`, mai nel
 pacchetto né in `.htaccess`. La durata della migrazione massiva non fa parte
-del controllo rapido offline delle sezioni 1-5.
+del controllo rapido offline delle sezioni 1-6.
 
-## 7. Arrestare
+Per il test esteso, dopo aver configurato un PostgreSQL locale vuoto e avviato
+Django/Tomcat con `Start-DriveAura.ps1`, usare il comando già incluso e
+limitato nel tempo:
+
+```powershell
+.\tools\verify-mass-migration.ps1 `
+  -RemoteBaseUrl 'https://motorizzami.altervista.org/drive-aura-api/remote-php/public' `
+  -LocalBaseUrl 'http://127.0.0.1:8000' `
+  -BridgeBaseUrl 'http://127.0.0.1:8080' `
+  -TimeoutSeconds 1800 -Repeat
+```
+
+È una migrazione estesa con rete: attende 36.176 righe, 364 lotti e il
+`datasetId` T07, quindi non è un controllo da cinque minuti. Non esiste un BAT
+separato per evitare di nascondere prerequisiti e credenziali della prova reale.
+
+## 8. Arrestare
 
 ```powershell
 .\installer\Stop-DriveAura.ps1 `
@@ -180,7 +226,7 @@ PID creato all'avvio e prova prima l'arresto Tomcat ordinato. Prima di forzare
 la chiusura verifica PID, percorso eseguibile e istante di avvio, quindi
 arresta soltanto i discendenti appartenenti a quell'albero.
 
-## 8. Risolvere i problemi
+## 9. Risolvere i problemi
 
 ### Python non trovato o incompatibile
 
@@ -192,7 +238,7 @@ contiene `venv`.
 
 Sintomo: richiesta Java 17, Tomcat non riconosciuto o Tomcat 10 rifiutato.
 Soluzione: abbinare Java 8+ a Tomcat 9 oppure Java 17+ a Tomcat 11 e passare la
-directory che contiene `bin\catalina.bat`.
+directory che contiene `bin\catalina.bat`. Tomcat 10 non è compatibile.
 
 ### PostgreSQL non raggiungibile
 
@@ -210,7 +256,7 @@ porte libere, per esempio `-DjangoPort 18000 -TomcatPort 18080
 ### Segreto mancante
 
 Sintomo: `Segreto mancante` oppure HTTP 401.
-Soluzione: impostare nuovamente tutte le variabili della sezione 3 nella
+Soluzione: impostare nuovamente tutte le variabili della sezione 4 nella
 stessa finestra PowerShell.
 
 ### Wheel, WAR, dump o checksum alterato
@@ -230,18 +276,17 @@ Sintomo: `Percorso Windows troppo lungo` oppure estrazione incompleta.
 Soluzione: non spostare la copia parziale; riestrarre lo ZIP originale
 direttamente in `C:\DriveAura51` e rilanciare il controllo di integrità.
 
-### Database di verifica non vuoto
+### Database, percorso o versione
 
-Sintomo: rifiuto delle righe già presenti.
-Soluzione: indicare un nuovo nome con `-VerificationDatabase`. Il
-configuratore non cancella né sovrascrive dati estranei. Il database operativo
-indicato da `-PostgresDatabase` non viene popolato dalla prova rapida.
+Se il database di verifica non è vuoto, indicare un nome nuovo con
+`-VerificationDatabase`: il configuratore non cancella né sovrascrive dati.
+Se `python`, `java` o `psql` non sono riconosciuti, inserire nel BAT il
+percorso completo di `python.exe`, JDK, Tomcat e `bin` PostgreSQL, senza
+modificare il `PATH`. Per versioni incompatibili usare Python 3.12 x64,
+PostgreSQL 14-18 e Tomcat 9/11 con la Java indicata nella sezione 1.
 
-## 9. Contenuto utile
+## 10. Contenuto utile
 
-- `artifacts`: WAR Tomcat 9 e Tomcat 11;
-- `wheelhouse`: sette wheel e hash;
-- `database`: dump sorgente massivo e checksum;
-- `source`: sorgenti PHP, Java e Django;
-- `installer`: configuratore, avvio, arresto e verificatore;
-- `pdf`: manuale e scelte progettuali.
+`verifica-rapida.bat`, `installer`, `artifacts` (due WAR), `wheelhouse`,
+`database` (dump e checksum), `source` (PHP, Java, Django) e `pdf` (manuale e
+scelte progettuali).

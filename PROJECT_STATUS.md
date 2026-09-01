@@ -15,11 +15,44 @@ T12 ha pubblicato su GitHub il branch orfano `consegna`. T14 ha rigenerato il
 candidato di consegna, che contiene esclusivamente i due allegati indicati
 nella bozza email; `main` resta il repository tecnico completo.
 
-T13, T13.1, T13.2, T14 e T15 sono in revisione Work e `AUTORIZZATA` è
+T13, T13.1, T13.2, T14, T15 e T16 sono in revisione Work e `AUTORIZZATA` è
 `Nessuna`. Le anomalie storiche T13 sono state risolte in T15 soltanto dopo un
 backup completo verificato: le otto tabelle sono state riallineate alle fonti
-ufficiali e il certificato HTTPS è stato validato. La verifica standard resta
-il pacchetto offline; Altervista è ora una sorgente reale opzionale.
+ufficiali e il certificato HTTPS è stato validato. T16 rende più immediata la
+verifica standard dal Prompt dei comandi senza cambiare l'architettura. La
+verifica standard resta il pacchetto offline; Altervista è ora una sorgente
+reale opzionale.
+
+## Esito T16 - accesso semplificato alla consegna offline
+
+- aggiunti `verifica-rapida.bat` e `installer/Start-QuickVerification.ps1`:
+  il BAT controlla l'esistenza di PowerShell, esegue l'integrità e avvia un
+  ingresso guidato senza inserire segreti nella riga di comando o nei file;
+- l'ingresso chiede percorsi completi e credenziali PostgreSQL locali; mantiene
+  la password soltanto nell'ambiente del processo, genera i quattro segreti
+  della prova sintetica solo in memoria e li ripristina in `finally`;
+- prima di qualsiasi `createdb`, verifica entrambi i nomi: se uno esiste, si
+  ferma e chiede un nome nuovo. Non contiene `DROP`, svuotamenti o scritture su
+  database esistenti;
+- manuale, README di consegna, checklist ed email distinguono chiaramente i
+  percorsi completi dal `PATH`, Python 3.12 x64/PostgreSQL 14-18/Tomcat 9 o 11,
+  il Bearer opzionale Altervista dalle credenziali PostgreSQL locali e il
+  checksum automatico da quello esterno;
+- la migrazione massiva Altervista resta il comando PowerShell già verificato,
+  esplicito su rete, servizi locali, token e timeout; nessun BAT aggiuntivo
+  nasconde tali prerequisiti;
+- parser PowerShell e `verifica-rapida.bat --help` superati; la suite
+  installer aggiornata ha superato 33/33 casi, incluso il controllo che il BAT
+  lanci integrità e non legga segreti da `cmd`. Il pacchetto è stato
+  ricostruito ed estratto in `C:\tmp\drive-aura-t16`:
+  `Test-PackageIntegrity.ps1` ha confermato 121 payload, 2 WAR, 7 wheel e 2
+  PDF. Il tree include effettivamente il BAT e l'ingresso PowerShell;
+- manuale A4 in 3 pagine e scelte in 1 pagina rigenerati, renderizzati a 144
+  dpi e ispezionati: nessun taglio, sovrapposizione, margine irregolare,
+  carattere corrotto o pagina superflua;
+- candidato T16: 12.867.808 byte, 123 entry/121 payload, SHA-256
+  `ae7d6ef17c9f1a31291c5a53766e5bc4fba7fc73bfaf5d3d8fa5e4c4d521d2a0`.
+  Nessun segreto reale, cache, log, runtime o artefatto di Progetto 1 incluso.
 
 ## Esito T15 - riallineamento e collaudo finale Altervista
 
